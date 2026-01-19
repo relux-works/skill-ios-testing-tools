@@ -8,7 +8,9 @@ Swift package for iOS/macOS UI testing with screenshot capture and validation.
 |---------|------|-------------|
 | **ScreenshotKit** | Library | Screenshot capture with structured naming |
 | **UITestKit** | Library | Page Object protocols, XCUIElement extensions, Allure annotations |
-| **extract-screenshots** | CLI | Extract/organize screenshots from xcresult |
+| **extract-screenshots** | CLI | Extract/organize screenshots from xcresult (macOS only, terminal use) |
+
+> **Note:** Only add `ScreenshotKit` and `UITestKit` to your UI test target. The `extract-screenshots` CLI uses `Foundation.Process` which is unavailable on iOS — do NOT add it as a target dependency. Run it from terminal only.
 
 ## Installation
 

@@ -60,9 +60,11 @@ SPM package providing:
   - `PageObject/` - PageElement, ComponentElement protocols, BaseUITestSuite
   - `Extensions/` - XCUIElement+WaitFor helper
   - `Allure/` - AllureTrackable protocol for Allure annotations
-- **extract-screenshots** - CLI to extract/organize screenshots from xcresult
+- **extract-screenshots** - macOS CLI to extract/organize screenshots from xcresult
 
 Add as SPM dependency (local or remote).
+
+**Important:** Only add `ScreenshotKit` and `UITestKit` to UI test target dependencies. Do NOT add `extract-screenshots` — it uses `Foundation.Process` (unavailable on iOS) and will fail to build for iOS Simulator. Run it from terminal only.
 
 ### 2. Accessibility ID System
 
@@ -108,7 +110,7 @@ cp -r assets/UIStruct/ ./AppUITests/UIStruct/
 Add to Xcode:
 - **UITestToolkit** as SPM dependency (local clone or git URL)
 - **TestEnvShared** to both app and test target compile sources
-- **ScreenshotKit + UITestKit** dependencies to UI test target
+- **ScreenshotKit + UITestKit** as dependencies to UI test target (NOT extract-screenshots!)
 
 ### 2. Mark UI Elements
 
