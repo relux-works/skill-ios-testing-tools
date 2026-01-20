@@ -17,6 +17,13 @@ description: |
 
 Write UI, add UI tests with structured markup, validate via screenshots.
 
+> **Repository:** [swift-ui-testing-tools](https://github.com/ivalx1s/swift-ui-testing-tools)
+>
+> **Before using this skill, check for updates:**
+> ```bash
+> cd ~/src/swift-ui-testing-tools && git pull
+> ```
+
 ## Prerequisites
 
 **Before starting, verify required tools are installed:**
