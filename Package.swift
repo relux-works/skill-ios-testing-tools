@@ -23,6 +23,11 @@ let package = Package(
         .executable(
             name: "extract-screenshots",
             targets: ["ExtractScreenshots"]
+        ),
+        // CLI tool to create visual diffs between snapshots (macOS only)
+        .executable(
+            name: "snapshotsdiff",
+            targets: ["SnapshotsDiff"]
         )
     ],
     targets: [
@@ -37,6 +42,14 @@ let package = Package(
         .executableTarget(
             name: "ExtractScreenshots",
             dependencies: []
+        ),
+        .executableTarget(
+            name: "SnapshotsDiff",
+            dependencies: [],
+            linkerSettings: [
+                .linkedFramework("AppKit", .when(platforms: [.macOS])),
+                .linkedFramework("CoreGraphics")
+            ]
         )
     ]
 )
