@@ -1,13 +1,13 @@
 #!/usr/bin/env zsh
 #
-# Deinit script for ios-ui-validation skill.
+# Deinit script for ios-testing-tools skill.
 # Removes symlinks from ~/.agents/skills/, ~/.claude/skills/, ~/.codex/skills/.
 # Does NOT delete any skill files.
 #
 
 set -euo pipefail
 
-SKILL_NAME="ios-ui-validation"
+SKILL_NAME="ios-testing-tools"
 AGENTS_SKILLS="$HOME/.agents/skills"
 CLAUDE_SKILLS="$HOME/.claude/skills"
 CODEX_SKILLS="$HOME/.codex/skills"
@@ -30,7 +30,7 @@ remove_symlink() {
 
 # --- Run ---
 print ""
-green "=== ios-ui-validation skill deinit ==="
+green "=== ios-testing-tools skill deinit ==="
 print ""
 
 remove_symlink "$CODEX_SKILLS/$SKILL_NAME"

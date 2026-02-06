@@ -1,13 +1,13 @@
 #!/usr/bin/env zsh
 #
-# Setup script for ios-ui-validation skill.
+# Setup script for ios-testing-tools skill.
 # Creates symlinks into ~/.agents/skills/, ~/.claude/skills/, ~/.codex/skills/.
 #
 
 set -euo pipefail
 
 REPO_DIR="$(cd "$(dirname "$0")/.." && pwd)"
-SKILL_NAME="ios-ui-validation"
+SKILL_NAME="ios-testing-tools"
 SKILL_DIR="$REPO_DIR/agents/skills/$SKILL_NAME"
 AGENTS_SKILLS="$HOME/.agents/skills"
 CLAUDE_SKILLS="$HOME/.claude/skills"
@@ -38,7 +38,7 @@ create_symlink() {
 
 # --- Run ---
 print ""
-green "=== ios-ui-validation skill setup ==="
+green "=== ios-testing-tools skill setup ==="
 print ""
 
 # 1. Symlink into ~/.agents/skills/

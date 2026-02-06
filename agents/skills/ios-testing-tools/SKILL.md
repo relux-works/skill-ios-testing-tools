@@ -1,5 +1,5 @@
 ---
-name: ios-ui-validation
+name: ios-testing-tools
 description: |
   iOS UI testing toolkit with screenshot validation. Use when:
   (1) Setting up UI test infrastructure with Page Object pattern
