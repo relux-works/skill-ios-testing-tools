@@ -2,15 +2,15 @@
 # Setup skills globally for Claude Code and Codex CLI
 #
 # Creates:
-#   ~/agents/skills/ios-ui-validation/   ← actual skill
-#   ~/.claude/skills/ios-ui-validation   ← symlink
-#   ~/.codex/skills/ios-ui-validation    ← symlink
+#   ~/agents/skills/ios-testing-tools/   ← actual skill
+#   ~/.claude/skills/ios-testing-tools   ← symlink
+#   ~/.codex/skills/ios-testing-tools    ← symlink
 
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 REPO_DIR="$(dirname "$SCRIPT_DIR")"
-SKILL_NAME="ios-ui-validation"
+SKILL_NAME="ios-testing-tools"
 
 echo "Setting up global skills..."
 
