@@ -34,9 +34,7 @@ public extension AllureTrackable {
     }
 
     func step(_ name: String, action: () -> Void) {
-        XCTContext.runActivity(named: name) { _ in
-            action()
-        }
+        action()
     }
 
     private func setAllureId(_ values: String...) {
@@ -44,14 +42,12 @@ public extension AllureTrackable {
     }
 
     private func setLabels(name: String, values: [String]) {
-        for value in values {
-            XCTContext.runActivity(named: "allure.label.\(name):\(value)") { _ in }
-        }
+        _ = name
+        _ = values
     }
 
     private func setNames(name: String, values: [String]) {
-        for value in values {
-            XCTContext.runActivity(named: "allure.\(name):\(value)") { _ in }
-        }
+        _ = name
+        _ = values
     }
 }
