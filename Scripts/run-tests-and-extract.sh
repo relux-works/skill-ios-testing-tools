@@ -57,6 +57,11 @@ if [ -z "$OUTPUT_DIR" ]; then
     OUTPUT_DIR=".temp/${TIMESTAMP}_screenshots"
 fi
 
+RESULTS_DIR="$(pwd)/.temp"
+RESULT_BUNDLE_PATH="$RESULTS_DIR/latest.xcresult"
+
+mkdir -p "$RESULTS_DIR"
+
 echo "═══════════════════════════════════════════════════════════════"
 echo "Running UI tests..."
 echo "═══════════════════════════════════════════════════════════════"
@@ -66,8 +71,10 @@ echo ""
 xcodebuild test \
     "${XCODEBUILD_ARGS[@]}" \
     -destination "$DESTINATION" \
-    -resultBundlePath ".temp/latest.xcresult" \
+    -resultBundlePath "$RESULT_BUNDLE_PATH" \
     | xcpretty || true
+
+echo "xcresult: $RESULT_BUNDLE_PATH"
 
 echo ""
 echo "═══════════════════════════════════════════════════════════════"
@@ -85,7 +92,7 @@ if [ ! -f "$PACKAGE_DIR/.build/release/extract-screenshots" ]; then
 fi
 
 # Extract screenshots
-"$PACKAGE_DIR/.build/release/extract-screenshots" ".temp/latest.xcresult" "$OUTPUT_DIR"
+"$PACKAGE_DIR/.build/release/extract-screenshots" "$RESULT_BUNDLE_PATH" "$OUTPUT_DIR"
 
 echo ""
 echo "═══════════════════════════════════════════════════════════════"
