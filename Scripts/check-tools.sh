@@ -1,7 +1,7 @@
 #!/bin/bash
 # Check required tools for iOS UI testing workflow
 #
-# Run this before using the ios-ui-validation skill to ensure
+# Run this before using the ios-testing-tools skill to ensure
 # all required tools are installed and configured.
 
 set -e
@@ -62,24 +62,27 @@ check "Swift 6.2+" \
     "swift --version | grep -E 'Swift version 6\.[2-9]|Swift version 6\.[1-9][0-9]|Swift version [7-9]\.|Swift version [1-9][0-9]\.'" \
     "Update Xcode 26+ or Swift toolchain"
 
-# simctl (iOS Simulator)
-check "simctl (Simulator)" \
-    "xcrun simctl help" \
-    "Part of Xcode Command Line Tools"
-
-# Check for booted simulators or available devices
-check "iOS Simulators available" \
-    "xcrun simctl list devices available | grep -i iphone" \
-    "Open Xcode → Settings → Platforms → Download iOS Simulator"
-
 # Homebrew (optional but recommended)
 echo ""
-echo "Optional tools:"
+echo "Optional or platform-specific tools:"
 if which brew &>/dev/null; then
     echo -e "${GREEN}✓${NC} Homebrew"
 else
     echo -e "${YELLOW}○${NC} Homebrew (optional)"
     echo -e "  ${YELLOW}→ Install: /bin/bash -c \"\$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)\"${NC}"
+fi
+
+if xcrun simctl help &>/dev/null; then
+    echo -e "${GREEN}✓${NC} simctl (needed for iOS Simulator runs)"
+else
+    echo -e "${YELLOW}○${NC} simctl (needed only for iOS Simulator runs)"
+fi
+
+if xcrun simctl list devices available 2>/dev/null | grep -i iphone &>/dev/null; then
+    echo -e "${GREEN}✓${NC} iPhone Simulators available"
+else
+    echo -e "${YELLOW}○${NC} iPhone Simulators available (needed only for iOS Simulator runs)"
+    echo -e "  ${YELLOW}→ Open Xcode → Settings → Platforms → Download iOS Simulator${NC}"
 fi
 
 echo ""

@@ -9,6 +9,12 @@ AGENTS_DIR="$HOME/.agents/skills"
 CLAUDE_DIR="$HOME/.claude/skills"
 CODEX_DIR="$HOME/.codex/skills"
 
+scrub_git_metadata() {
+  local target_dir="$1"
+  rm -rf "$target_dir/.git"
+  rm -f "$target_dir/.gitignore" "$target_dir/.gitattributes" "$target_dir/.gitmodules"
+}
+
 echo "Installing skill: $SKILL_NAME"
 echo "  Source: $SKILL_CONTENT_DIR"
 
@@ -18,6 +24,7 @@ if [ -L "$AGENTS_DIR/$SKILL_NAME" ]; then
 fi
 mkdir -p "$AGENTS_DIR/$SKILL_NAME"
 rsync -a --delete "$SKILL_CONTENT_DIR/" "$AGENTS_DIR/$SKILL_NAME/" --exclude='.git'
+scrub_git_metadata "$AGENTS_DIR/$SKILL_NAME"
 echo "  Copied -> $AGENTS_DIR/$SKILL_NAME/"
 
 # 2. Symlink from .claude/skills/ -> .agents/skills/

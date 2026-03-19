@@ -35,7 +35,19 @@ Write UI, add UI tests with structured markup, validate via screenshots.
 Required:
 - Xcode Command Line Tools (`xcodebuild`, `xcrun`, `xcresulttool`)
 - Swift 5.9+
-- iOS Simulator with available devices
+- iOS Simulator with available devices when the selected test platform is iOS
+
+## Test Platform Selection
+
+Pick the execution platform from the target declaration before running anything.
+
+- iOS app target or app package: run tests and runtime by default on iOS Simulator.
+- App target or app package on another declared platform: run against that declared platform.
+- If the app/package does not declare any platform, default to macOS.
+- Package module or multi-platform package: run unit and integration tests on macOS when macOS is supported.
+- If macOS is not supported, prefer iOS when iOS is declared.
+- If neither macOS nor iOS is available, use the first declared platform.
+- Use simulator destinations only for iOS-family runs. For macOS, run on macOS directly.
 
 ## Main Workflow
 
@@ -209,6 +221,8 @@ final class AuthTests: BaseUITestSuite, AllureTrackable {
 
 **Option A: One command (recommended)**
 
+These simulator examples are for iOS app/UI-test flows. For package module unit/integration tests, apply the platform-selection rule above first and stay on macOS when supported.
+
 ```bash
 # Run from YOUR PROJECT directory (not toolkit directory!)
 cd /path/to/your/project
@@ -318,6 +332,8 @@ This applies to any SwiftUI Toggle where the tap area includes the label.
 ## Snapshot Testing (swift-snapshot-testing)
 
 For automated UI regression testing, use **snapshot tests** with [swift-snapshot-testing](https://github.com/pointfreeco/swift-snapshot-testing) by PointFree.
+
+Apply the same platform-selection rule here: iOS app snapshots default to iOS Simulator; library/module packages stay on macOS when macOS is supported.
 
 ### When to Use
 

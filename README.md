@@ -73,15 +73,28 @@ final class MyUITests: BaseUITestSuite {
 }
 ```
 
+## Test Platform Selection
+
+Choose the execution platform from the target declaration before running tests.
+
+- iOS app target or app package: run tests and runtime by default on iOS Simulator.
+- App target or app package on another declared platform: run against that declared platform.
+- If the app/package declares no platform, default to macOS.
+- Package module or multi-platform package: run unit and integration tests on macOS when macOS is supported.
+- If macOS is unavailable, prefer iOS when declared.
+- Otherwise use the first declared platform.
+- Use simulator destinations only for iOS-family runs. For macOS, run on macOS directly.
+
 ## Scripts
 
 | Script | Description |
 |--------|-------------|
-| `check-tools.sh` | Verify Xcode, Swift, simctl installed |
+| `check-tools.sh` | Verify required tools, plus optional iOS Simulator support |
 | `run-tests-and-extract.sh` | Run UI tests + extract screenshots |
 | `extract-screenshots.sh` | Extract screenshots from xcresult |
-| `setup-project-skills.sh` | Install AI skill to a project |
-| `setup-global-skills.sh` | Install AI skill globally |
+| `setup.sh` | Canonical global skill install into `~/.agents` |
+| `setup-project-skills.sh` | Install AI skill to a project-local `.agents` |
+| `setup-global-skills.sh` | Compatibility wrapper around `./setup.sh` |
 
 ```bash
 # Check prerequisites
@@ -99,25 +112,30 @@ Options:
 - `-output dir` — where to put screenshots (default: `.temp/{timestamp}_screenshots`, relative to CWD)
 - `-destination "..."` — simulator to use (default: iPhone 16)
 
+The simulator examples above are for iOS app/UI-test flows. Package module unit and integration tests should stay on macOS when macOS is supported by the package.
+
 ## Project Structure
 
 ```
-agents/skills/                     ← source of truth (visible in Finder)
-  ios-ui-validation/               ← AI skill for UI testing
-.claude/skills → ../agents/skills  ← symlink for Claude Code
-.codex/skills → ../agents/skills   ← symlink for Codex CLI
+agents/skills/                        ← source repo content
+  ios-testing-tools/                  ← source skill
+~/.agents/skills/ios-testing-tools/   ← global installed runtime copy
+<project>/.agents/skills/ios-testing-tools/  ← project-local installed runtime copy
+.claude/skills → ../.agents/skills    ← symlink for Claude Code
+.codex/skills → ../.agents/skills     ← symlink for Codex CLI
 ```
 
-All skills live in `agents/skills/`. The `.claude/` and `.codex/` folders are symlinks, so both Claude Code and Codex CLI find the same skills.
+Source content lives in `agents/skills/`. Installed runtime copies live in `~/.agents/skills/` or `<project>/.agents/skills/`, and those copies are degitized after sync. `.claude/` and `.codex/` only point at the installed copy.
 
 ## AI Agent Skill
 
-Includes `ios-ui-validation` skill for AI-assisted UI test development.
+Includes `ios-testing-tools` skill for AI-assisted UI test development.
 
 **Setup:**
 ```bash
-./Scripts/setup-project-skills.sh /path/to/your/project  # project-local
-./Scripts/setup-global-skills.sh                          # global
+./setup.sh                                               # canonical global install
+./Scripts/setup-project-skills.sh /path/to/your/project  # project-local install
+./Scripts/setup-global-skills.sh                         # compatibility wrapper
 ```
 
 **Provides:**
@@ -140,7 +158,7 @@ dependencies: [
 ]
 ```
 
-See the `ios-ui-validation` skill documentation for detailed patterns and examples.
+See the `ios-testing-tools` skill documentation for detailed patterns and examples.
 
 ## snapshotsdiff CLI
 
@@ -253,7 +271,7 @@ lane :generate_snapshot_diffs do
 end
 ```
 
-See `ios-ui-validation` skill for detailed examples.
+See `ios-testing-tools` skill for detailed examples.
 
 ## Requirements
 
