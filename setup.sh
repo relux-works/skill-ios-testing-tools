@@ -15,6 +15,12 @@ scrub_git_metadata() {
   rm -f "$target_dir/.gitignore" "$target_dir/.gitattributes" "$target_dir/.gitmodules"
 }
 
+codex_uses_shared_agents_runtime() {
+  local codex_agents="$HOME/.codex/AGENTS.md"
+  local shared_agents="$HOME/.agents/.instructions/AGENTS.md"
+  [[ -L "$codex_agents" && "$(readlink "$codex_agents")" == "$shared_agents" ]]
+}
+
 echo "Installing skill: $SKILL_NAME"
 echo "  Source: $SKILL_CONTENT_DIR"
 
@@ -35,9 +41,19 @@ echo "  Symlink -> $CLAUDE_DIR/$SKILL_NAME"
 
 # 3. Symlink from .codex/skills/ -> .agents/skills/
 mkdir -p "$CODEX_DIR"
-rm -f "$CODEX_DIR/$SKILL_NAME"
-ln -s "$AGENTS_DIR/$SKILL_NAME" "$CODEX_DIR/$SKILL_NAME"
-echo "  Symlink -> $CODEX_DIR/$SKILL_NAME"
+if codex_uses_shared_agents_runtime; then
+  if [ -L "$CODEX_DIR/$SKILL_NAME" ]; then
+    rm -f "$CODEX_DIR/$SKILL_NAME"
+    echo "  Removed duplicate Codex skill symlink -> $CODEX_DIR/$SKILL_NAME"
+  elif [ -e "$CODEX_DIR/$SKILL_NAME" ]; then
+    echo "  Leaving existing non-symlink Codex entry in place -> $CODEX_DIR/$SKILL_NAME"
+  fi
+  echo "  Skipping Codex skill symlink; shared runtime uses ~/.agents/skills as source of truth"
+else
+  rm -f "$CODEX_DIR/$SKILL_NAME"
+  ln -s "$AGENTS_DIR/$SKILL_NAME" "$CODEX_DIR/$SKILL_NAME"
+  echo "  Symlink -> $CODEX_DIR/$SKILL_NAME"
+fi
 
 echo ""
 echo "Done. Installed $(git -C "$REPO_DIR" describe --tags --always 2>/dev/null || echo 'unknown')"
