@@ -85,6 +85,26 @@ Choose the execution platform from the target declaration before running tests.
 - Otherwise use the first declared platform.
 - Use simulator destinations only for iOS-family runs. For macOS, run on macOS directly.
 
+## Physical Device Runtime Logs
+
+When debugging runtime behavior on a physical iPhone, prefer the live device console over guessing from `xcodebuild` output.
+
+```bash
+DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer \
+xcrun xcdevice list
+```
+
+```bash
+DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer \
+xcrun devicectl device process launch \
+  --device <device-udid> \
+  --terminate-existing \
+  --console \
+  <bundle-id>
+```
+
+Use `--console` for app-scoped logs, `--terminate-existing` to avoid stale processes, and the device UDID rather than the display name.
+
 ## Scripts
 
 | Script | Description |

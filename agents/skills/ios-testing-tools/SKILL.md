@@ -49,6 +49,37 @@ Pick the execution platform from the target declaration before running anything.
 - If neither macOS nor iOS is available, use the first declared platform.
 - Use simulator destinations only for iOS-family runs. For macOS, run on macOS directly.
 
+## Physical Device Runtime Logs
+
+When UI tests or runtime behavior are investigated on a physical iPhone, inspect the live device console instead of guessing from `xcodebuild` output alone.
+
+- Prefer `devicectl device process launch --console` for app-scoped runtime logs on a connected device.
+- Always set `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer` before `xcrun` commands if the shell does not already point at Xcode.
+- Resolve the target device first with `xcrun xcdevice list`.
+- Use the device UDID in commands; names can be ambiguous.
+
+Recommended flow:
+
+```bash
+DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer \
+xcrun xcdevice list
+```
+
+```bash
+DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer \
+xcrun devicectl device process launch \
+  --device <device-udid> \
+  --terminate-existing \
+  --console \
+  <bundle-id>
+```
+
+Notes:
+- `--console` attaches stdout/stderr and waits for app exit, so use it for live runtime triage.
+- `--terminate-existing` avoids reading stale logs from an older app process.
+- This is the preferred path for investigating auth/network/runtime failures on device.
+- If you need broader system logs beyond one app process, fall back to Xcode Devices window or Console.app with the same physical device selected.
+
 ## Main Workflow
 
 1. **Write UI** with accessibility identifiers
