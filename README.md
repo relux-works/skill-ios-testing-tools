@@ -85,6 +85,21 @@ Choose the execution platform from the target declaration before running tests.
 - Otherwise use the first declared platform.
 - Use simulator destinations only for iOS-family runs. For macOS, run on macOS directly.
 
+### Apple Silicon Mac iOS-App Runtime
+
+When an iOS app needs a Mac-side endpoint, use the existing iPhoneOS app on the Apple Silicon Mac `Designed for iPad/iPhone` destination. Do not add a separate macOS app target unless the product explicitly needs native macOS UI.
+
+```bash
+DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer \
+xcodebuild \
+  -workspace App.xcworkspace \
+  -scheme App \
+  -destination 'platform=macOS,arch=arm64,variant=Designed for iPad' \
+  build
+```
+
+Launching the built `Debug-iphoneos/App.app` with `open` is not reliable for this runtime, and XCUITest cannot drive `My Mac (Designed for iPad)`. Use Xcode's run action through AppleScript to launch the Mac-hosted iOS app, then run the actual UI test against a physical iPhone or Simulator endpoint. See `agents/skills/ios-testing-tools/SKILL.md` for the full workflow.
+
 ## Physical Device Runtime Logs
 
 When debugging runtime behavior on a physical iPhone, prefer the live device console over guessing from `xcodebuild` output.

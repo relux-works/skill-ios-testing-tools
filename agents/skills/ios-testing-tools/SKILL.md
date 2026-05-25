@@ -49,6 +49,89 @@ Pick the execution platform from the target declaration before running anything.
 - If neither macOS nor iOS is available, use the first declared platform.
 - Use simulator destinations only for iOS-family runs. For macOS, run on macOS directly.
 
+## Apple Silicon Mac iOS-App Runtime
+
+Use this path when the product app is an iOS app and the test environment needs a Mac-side peer, receiver, or host process on Apple Silicon. This is **not** a separate macOS app target and not Catalyst. It is the existing iPhoneOS app running on the Mac as `Designed for iPad/iPhone`.
+
+First verify that Xcode exposes the destination:
+
+```bash
+DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer \
+xcodebuild \
+  -workspace App.xcworkspace \
+  -scheme App \
+  -showdestinations
+```
+
+Look for a destination like:
+
+```text
+{ platform:macOS, arch:arm64, variant:Designed for [iPad,iPhone], name:My Mac }
+```
+
+Build the existing iOS app for that destination:
+
+```bash
+DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer \
+xcodebuild \
+  -workspace App.xcworkspace \
+  -scheme App \
+  -destination 'platform=macOS,arch=arm64,variant=Designed for iPad' \
+  build
+```
+
+Important limitations:
+
+- Do not create a separate macOS app target just to get a Mac-side peer. Use the existing iOS app on the Apple Silicon Mac destination unless the product explicitly needs native macOS UI.
+- `open Debug-iphoneos/App.app` is not a valid launch path for this runtime. macOS may report `incorrect executable format` because the product is still an iPhoneOS bundle.
+- `devicectl` targets physical devices; it does not reliably expose the Apple Silicon Mac `Designed for iPad` runtime as an install/launch device.
+- XCUITest cannot drive the Mac `Designed for iPad` destination. `xcodebuild test` can fail with `UI tests are not supported on My Mac (Designed for iPad)`.
+
+To launch the Mac-hosted iOS app from automation, ask Xcode to run the scheme through AppleScript. This uses the same run machinery as pressing Run in Xcode:
+
+```bash
+osascript <<'APPLESCRIPT'
+set workspacePath to POSIX file "/absolute/path/App.xcworkspace"
+tell application "Xcode"
+    activate
+    open workspacePath
+    set workspaceDocument to workspace document "App.xcworkspace"
+    repeat 120 times
+        if loaded of workspaceDocument is true then exit repeat
+        delay 0.5
+    end repeat
+    if loaded of workspaceDocument is false then error "Xcode workspace did not finish loading"
+    set actionResult to debug workspaceDocument scheme "App" run destination specifier "platform=macOS,arch=arm64,variant=Designed for iPad" skip building true
+    return id of actionResult
+end tell
+APPLESCRIPT
+```
+
+Stop the running action when the test environment is done:
+
+```bash
+osascript <<'APPLESCRIPT'
+tell application "Xcode"
+    set workspaceDocument to workspace document "App.xcworkspace"
+    stop workspaceDocument
+end tell
+APPLESCRIPT
+```
+
+For cross-runtime e2e, run the Mac-hosted iOS app as one endpoint, then run the actual XCUITest against the physical iPhone or Simulator endpoint:
+
+```bash
+DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer \
+xcodebuild \
+  -workspace App.xcworkspace \
+  -scheme AppUITests \
+  -destination 'id=<physical-device-udid>' \
+  -only-testing:AppUITests/SomeE2ETests/testPhoneSeesMacHostedPeer \
+  test
+```
+
+Keep screenshots and assertions on the XCTest-driven endpoint. For the Mac-hosted iOS app, rely on app automation configuration, process checks, Xcode action status, logs, or manual permission approval when the OS prompts for Bluetooth, Local Network, or similar privacy access.
+
 ## Physical Device Runtime Logs
 
 When UI tests or runtime behavior are investigated on a physical iPhone, inspect the live device console instead of guessing from `xcodebuild` output alone.
