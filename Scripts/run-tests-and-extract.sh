@@ -85,11 +85,10 @@ echo ""
 # Create output directory
 mkdir -p "$OUTPUT_DIR"
 
-# Build extract tool if needed
-if [ ! -f "$PACKAGE_DIR/.build/release/extract-screenshots" ]; then
-    echo "Building extract-screenshots..."
-    swift build -c release --package-path "$PACKAGE_DIR" --product extract-screenshots
-fi
+# Build extract tool. SwiftPM is incremental; running this every time avoids
+# using a stale release binary after source changes.
+echo "Building extract-screenshots..."
+swift build -c release --package-path "$PACKAGE_DIR" --product extract-screenshots
 
 # Extract screenshots
 "$PACKAGE_DIR/.build/release/extract-screenshots" "$RESULT_BUNDLE_PATH" "$OUTPUT_DIR"

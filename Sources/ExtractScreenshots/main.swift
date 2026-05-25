@@ -21,6 +21,80 @@ struct AttachmentInfo: Codable {
     let suggestedHumanReadableName: String
 }
 
+struct CommandResult {
+    let terminationStatus: Int32
+    let standardOutput: String
+    let standardError: String
+}
+
+func runXcresulttoolExport(
+    xcresultPath: String,
+    outputPath: String,
+    developerDir: String? = nil
+) -> CommandResult {
+    let task = Process()
+    task.executableURL = URL(fileURLWithPath: "/usr/bin/xcrun")
+    task.arguments = [
+        "xcresulttool",
+        "export",
+        "attachments",
+        "--path",
+        xcresultPath,
+        "--output-path",
+        outputPath,
+    ]
+
+    var environment = ProcessInfo.processInfo.environment
+    if let developerDir {
+        environment["DEVELOPER_DIR"] = developerDir
+    }
+    task.environment = environment
+
+    let outputPipe = Pipe()
+    let errorPipe = Pipe()
+    task.standardOutput = outputPipe
+    task.standardError = errorPipe
+
+    do {
+        try task.run()
+        task.waitUntilExit()
+    } catch {
+        return CommandResult(
+            terminationStatus: -1,
+            standardOutput: "",
+            standardError: error.localizedDescription
+        )
+    }
+
+    let outputData = outputPipe.fileHandleForReading.readDataToEndOfFile()
+    let errorData = errorPipe.fileHandleForReading.readDataToEndOfFile()
+
+    return CommandResult(
+        terminationStatus: task.terminationStatus,
+        standardOutput: String(data: outputData, encoding: .utf8) ?? "",
+        standardError: String(data: errorData, encoding: .utf8) ?? ""
+    )
+}
+
+func printCommandFailure(_ result: CommandResult) {
+    print("Failed to export attachments with xcresulttool")
+    print("Exit code: \(result.terminationStatus)")
+
+    let standardOutput = result.standardOutput.trimmingCharacters(in: .whitespacesAndNewlines)
+    if !standardOutput.isEmpty {
+        print("")
+        print("stdout:")
+        print(standardOutput)
+    }
+
+    let standardError = result.standardError.trimmingCharacters(in: .whitespacesAndNewlines)
+    if !standardError.isEmpty {
+        print("")
+        print("stderr:")
+        print(standardError)
+    }
+}
+
 // MARK: - Entry Point
 
 func printUsage() {
@@ -63,17 +137,27 @@ defer { try? FileManager.default.removeItem(at: tempDir) }
 
 // Export all attachments
 print("Exporting attachments...")
-let task = Process()
-task.executableURL = URL(fileURLWithPath: "/usr/bin/xcrun")
-task.arguments = ["xcresulttool", "export", "attachments", "--path", xcresultPath, "--output-path", tempDir.path]
-task.standardOutput = FileHandle.nullDevice
-task.standardError = FileHandle.nullDevice
+let initialResult = runXcresulttoolExport(xcresultPath: xcresultPath, outputPath: tempDir.path)
+let fallbackDeveloperDir = "/Applications/Xcode.app/Contents/Developer"
+let canRetryWithXcode = ProcessInfo.processInfo.environment["DEVELOPER_DIR"] != fallbackDeveloperDir
+    && FileManager.default.fileExists(atPath: "\(fallbackDeveloperDir)/usr/bin/xcresulttool")
 
-try? task.run()
-task.waitUntilExit()
+let exportResult: CommandResult
+if initialResult.terminationStatus == 0 {
+    exportResult = initialResult
+} else if canRetryWithXcode {
+    print("xcresulttool failed with the active developer directory. Retrying with \(fallbackDeveloperDir)...")
+    exportResult = runXcresulttoolExport(
+        xcresultPath: xcresultPath,
+        outputPath: tempDir.path,
+        developerDir: fallbackDeveloperDir
+    )
+} else {
+    exportResult = initialResult
+}
 
-guard task.terminationStatus == 0 else {
-    print("Failed to export attachments")
+guard exportResult.terminationStatus == 0 else {
+    printCommandFailure(exportResult)
     exit(1)
 }
 

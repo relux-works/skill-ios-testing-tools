@@ -12,6 +12,7 @@ YELLOW='\033[0;33m'
 NC='\033[0m' # No Color
 
 ERRORS=0
+XCODE_DEVELOPER_DIR="${DEVELOPER_DIR:-/Applications/Xcode.app/Contents/Developer}"
 
 check() {
     local name="$1"
@@ -49,8 +50,8 @@ check "xcrun" \
 
 # xcresulttool
 check "xcresulttool" \
-    "xcrun xcresulttool version" \
-    "Part of Xcode Command Line Tools (Xcode 11+)"
+    "DEVELOPER_DIR=\"$XCODE_DEVELOPER_DIR\" xcrun xcresulttool version" \
+    "Install Xcode and verify /Applications/Xcode.app/Contents/Developer exists"
 
 # Swift
 check "Swift toolchain" \
@@ -72,13 +73,13 @@ else
     echo -e "  ${YELLOW}→ Install: /bin/bash -c \"\$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)\"${NC}"
 fi
 
-if xcrun simctl help &>/dev/null; then
+if DEVELOPER_DIR="$XCODE_DEVELOPER_DIR" xcrun simctl help &>/dev/null; then
     echo -e "${GREEN}✓${NC} simctl (needed for iOS Simulator runs)"
 else
     echo -e "${YELLOW}○${NC} simctl (needed only for iOS Simulator runs)"
 fi
 
-if xcrun simctl list devices available 2>/dev/null | grep -i iphone &>/dev/null; then
+if DEVELOPER_DIR="$XCODE_DEVELOPER_DIR" xcrun simctl list devices available 2>/dev/null | grep -i iphone &>/dev/null; then
     echo -e "${GREEN}✓${NC} iPhone Simulators available"
 else
     echo -e "${YELLOW}○${NC} iPhone Simulators available (needed only for iOS Simulator runs)"
