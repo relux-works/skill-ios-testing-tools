@@ -163,6 +163,91 @@ Notes:
 - This is the preferred path for investigating auth/network/runtime failures on device.
 - If you need broader system logs beyond one app process, fall back to Xcode Devices window or Console.app with the same physical device selected.
 
+## Physical Device Tunnel Recovery
+
+Use this playbook when Xcode or `devicectl` can see a physical iPhone, pairing succeeds, but developer operations fail with a tunnel error such as:
+
+```text
+The tunnel connection failed while the system tried to connect to the device.
+Domain: com.apple.dt.CoreDeviceError
+Code: 4
+--
+Domain: com.apple.dt.RemotePairingError
+Code: 4
+```
+
+Typical `devicectl device info details` symptoms:
+
+- `pairingState: paired`
+- `transportType: wired` or `localNetwork`
+- `tunnelState: disconnected`
+- `ddiServicesAvailable: false`
+- `devicectl device info lockState --device <udid>` fails with `RemotePairingError Code=4`
+
+First collect the state and compare with a known-good physical device if one is attached:
+
+```bash
+DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer \
+xcrun xcdevice list
+
+DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer \
+xcrun devicectl list devices
+
+DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer \
+xcrun devicectl device info details \
+  --device <device-udid> \
+  --verbose \
+  --timeout 30 \
+  --json-output .temp/device-details.json \
+  --log-output .temp/device-details.log
+
+DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer \
+xcrun devicectl device info lockState \
+  --device <device-udid> \
+  --verbose \
+  --timeout 30 \
+  --json-output .temp/device-lockstate.json \
+  --log-output .temp/device-lockstate.log
+```
+
+If the device charges but does not appear in `ioreg`, the Mac only sees power, not the USB data interface. Reboot the iPhone, unlock it, reconnect a known-good data cable/port, and accept the Trust prompt before spending time on Xcode caches:
+
+```bash
+ioreg -p IOUSB -l -w 0 | rg "USB Serial Number|<device-udid-without-dashes>"
+```
+
+If USB data and pairing are present but the tunnel still fails, use the iPhone-side Developer networking reset before clearing host caches:
+
+1. On the iPhone, open `Settings -> Developer -> Networking`.
+2. Enable `Network Link Conditioner`.
+3. If present, enable `Network Override`; it may be absent on some iPhone/iOS builds.
+4. Open `Responsiveness`.
+5. Run `Test Responsiveness` and wait for it to finish.
+6. Retry `devicectl device info lockState --device <device-udid>`.
+
+This can recover a stale Developer networking stack without rebooting, unpairing, or resetting trusted computers. A successful recovery usually changes `details` to:
+
+- `tunnelState: connected`
+- `ddiServicesAvailable: true`
+- `developerModeStatus: enabled`
+- a non-empty `tunnelIPAddress`
+
+If the issue persists after the Responsiveness test:
+
+- Disable `Multipath Networking` in `Settings -> Developer` if the setting exists.
+- Check for host VPN or network filter interfaces with `scutil --nwi` and `ifconfig | rg "utun|ipsec|tap|tun"`.
+- Restart CoreDevice host services and retry:
+
+```bash
+killall CoreDeviceService remoted 2>/dev/null || true
+
+DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer \
+xcrun devicectl manage ddis update --verbose --timeout 120
+```
+
+- If the iPhone OS is newer than the installed Xcode support, install a matching Xcode/device support bundle before continuing.
+- Only then consider heavier steps such as unpairing, resetting Location & Privacy/trusted computers, deleting Xcode/CoreDevice caches, or rebooting the Mac.
+
 ## Main Workflow
 
 1. **Write UI** with accessibility identifiers
