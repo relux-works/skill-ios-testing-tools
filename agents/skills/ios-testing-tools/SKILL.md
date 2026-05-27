@@ -248,6 +248,12 @@ xcrun devicectl manage ddis update --verbose --timeout 120
 - If the iPhone OS is newer than the installed Xcode support, install a matching Xcode/device support bundle before continuing.
 - Only then consider heavier steps such as unpairing, resetting Location & Privacy/trusted computers, deleting Xcode/CoreDevice caches, or rebooting the Mac.
 
+## Physical iOS/iOS E2E Synchronization
+
+For paired physical-device tests where two iPhones must coordinate roles such as sender/receiver, nearby discovery, BLE advertisement/scanning, or session handoff, use reactive orchestration instead of fixed sleeps.
+
+Read [references/physical-ios-ios-e2e-sync.md](references/physical-ios-ios-e2e-sync.md) before implementing or debugging a two-device harness.
+
 ## Main Workflow
 
 1. **Write UI** with accessibility identifiers
