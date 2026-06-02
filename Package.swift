@@ -28,6 +28,11 @@ let package = Package(
         .executable(
             name: "snapshotsdiff",
             targets: ["SnapshotsDiff"]
+        ),
+        // CLI tool to build an iOS app for connected physical devices
+        .executable(
+            name: "ios-device-build",
+            targets: ["IOSDeviceBuild"]
         )
     ],
     targets: [
@@ -50,6 +55,10 @@ let package = Package(
                 .linkedFramework("AppKit", .when(platforms: [.macOS])),
                 .linkedFramework("CoreGraphics")
             ]
+        ),
+        .executableTarget(
+            name: "IOSDeviceBuild",
+            dependencies: []
         )
     ]
 )

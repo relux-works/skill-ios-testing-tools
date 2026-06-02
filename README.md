@@ -10,6 +10,7 @@ Swift package for iOS/macOS UI testing with screenshot capture and validation.
 | **UITestKit** | Library | Page Object protocols, XCUIElement extensions, Allure annotations |
 | **extract-screenshots** | CLI | Extract/organize screenshots from xcresult (macOS only) |
 | **snapshotsdiff** | CLI | Create visual diffs between snapshot images (macOS only) |
+| **ios-device-build** | CLI | Build an iOS app across connected physical devices and the Apple Silicon Mac iOS-app destination (macOS only) |
 
 > **Note:** Only add `ScreenshotKit` and `UITestKit` to your UI test target. The CLI tools use `Foundation.Process`/`AppKit` which are unavailable on iOS — do NOT add them as target dependencies. Run from terminal only.
 
@@ -84,6 +85,7 @@ Choose the execution platform from the target declaration before running tests.
 - If macOS is unavailable, prefer iOS when declared.
 - Otherwise use the first declared platform.
 - Use simulator destinations only for iOS-family runs. For macOS, run on macOS directly.
+- If a reusable iOS package is consumed through an app-local graph and standalone package schemes cannot resolve local dependencies, verify it through the app workspace/test host instead of treating the standalone package build as the product build.
 
 ### Apple Silicon Mac iOS-App Runtime
 
@@ -99,6 +101,63 @@ xcodebuild \
 ```
 
 Launching the built `Debug-iphoneos/App.app` with `open` is not reliable for this runtime, and XCUITest cannot drive `My Mac (Designed for iPad)`. Use Xcode's run action through AppleScript to launch the Mac-hosted iOS app, then run the actual UI test against a physical iPhone or Simulator endpoint. See `agents/skills/ios-testing-tools/SKILL.md` for the full workflow.
+
+## Connected Device Builds
+
+Use `ios-device-build` when a project needs one command that builds an iOS app for every currently discovered physical iPhone/iPad. The command discovers devices through `xcrun xcdevice list --json`; there is no hard-coded expected device list, so a missing device is skipped and the remaining devices still build. If no matching destinations are found, the command fails.
+
+The build contract is intentionally explicit. Pass the project source, scheme, discovery interfaces, target set, and DerivedData/log root every time. The CLI fails fast on missing required parameters instead of guessing.
+
+Discovery is an interface option set:
+
+- `--discovery usb` builds only cable-connected physical iOS devices. This is the preferred stable mode.
+- `--discovery wifi` builds only network-discovered physical iOS devices.
+- `--discovery usb,wifi` builds every available physical iOS device Xcode currently sees.
+
+Target selection is separate:
+
+- `--targets iphones` builds physical iOS devices.
+- `--targets macbook` builds the Apple Silicon Mac `Designed for iPad/iPhone` destination when Xcode exposes it.
+- `--targets iphones,macbook` builds both groups.
+
+```bash
+./Scripts/ios-device-build.sh \
+  --workspace App.xcworkspace \
+  --scheme App \
+  --discovery usb \
+  --targets iphones \
+  --derived-data-root .temp/device-builds
+```
+
+```bash
+./Scripts/ios-device-build.sh \
+  --project App.xcodeproj \
+  --scheme App \
+  --discovery usb,wifi \
+  --targets iphones \
+  --derived-data-root .temp/device-builds
+```
+
+```bash
+./Scripts/ios-device-build.sh \
+  --workspace App.xcworkspace \
+  --scheme App \
+  --discovery usb \
+  --targets iphones,macbook \
+  --mac-destination 'platform=macOS,arch=arm64,variant=Designed for iPad' \
+  --derived-data-root .temp/device-builds
+```
+
+```bash
+./Scripts/ios-device-build.sh \
+  --workspace App.xcworkspace \
+  --scheme App \
+  --targets macbook \
+  --mac-destination 'platform=macOS,arch=arm64,variant=Designed for iPad' \
+  --derived-data-root .temp/device-builds
+```
+
+Per-destination DerivedData and `xcodebuild.log` files are written under the required `--derived-data-root`.
 
 ## Physical Device Runtime Logs
 
@@ -127,6 +186,7 @@ Use `--console` for app-scoped logs, `--terminate-existing` to avoid stale proce
 | `check-tools.sh` | Verify required tools, plus optional iOS Simulator support |
 | `run-tests-and-extract.sh` | Run UI tests + extract screenshots |
 | `extract-screenshots.sh` | Extract screenshots from xcresult |
+| `ios-device-build.sh` | Build an iOS app across discovered physical devices and optional Mac-compatible iOS destination |
 | `setup.sh` | Canonical global skill install into `~/.agents` |
 | `setup-project-skills.sh` | Install AI skill to a project-local `.agents` |
 | `setup-global-skills.sh` | Compatibility wrapper around `./setup.sh` |

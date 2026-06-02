@@ -48,6 +48,7 @@ Pick the execution platform from the target declaration before running anything.
 - If macOS is not supported, prefer iOS when iOS is declared.
 - If neither macOS nor iOS is available, use the first declared platform.
 - Use simulator destinations only for iOS-family runs. For macOS, run on macOS directly.
+- If a reusable iOS package is consumed through an app-local graph and standalone package schemes cannot resolve local dependencies, verify it through the app workspace/test host instead of treating the standalone package build as the product build.
 
 ## Apple Silicon Mac iOS-App Runtime
 
@@ -132,6 +133,78 @@ xcodebuild \
 
 Keep screenshots and assertions on the XCTest-driven endpoint. For the Mac-hosted iOS app, rely on app automation configuration, process checks, Xcode action status, logs, or manual permission approval when the OS prompts for Bluetooth, Local Network, or similar privacy access.
 
+## Connected Device Builds
+
+Use `ios-device-build` from this skill source repo when an iOS app should be built for every currently connected physical device without hard-coding an expected device list.
+
+The CLI has an explicit contract: always pass the Xcode source (`--workspace` or `--project`), `--scheme`, `--targets`, and `--derived-data-root`. Pass `--discovery` whenever `--targets` includes physical iPhones/iPads. Do not rely on inferred scheme names, inferred workspace/project names, or default discovery modes. The tool fails on missing required parameters so the agent can see exactly which assumption was wrong.
+
+The source repo path used by the local workflow is:
+
+```bash
+TOOLKIT=/Users/alexis/src/relux-works/skill-ios-testing-tools
+```
+
+Build only cable-connected physical iPhones/iPads:
+
+```bash
+DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer \
+$TOOLKIT/Scripts/ios-device-build.sh \
+  --workspace App.xcworkspace \
+  --scheme App \
+  --discovery usb \
+  --targets iphones \
+  --derived-data-root .temp/device-builds
+```
+
+Build every physical iOS device Xcode sees over USB or Wi-Fi:
+
+```bash
+DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer \
+$TOOLKIT/Scripts/ios-device-build.sh \
+  --project App.xcodeproj \
+  --scheme App \
+  --discovery usb,wifi \
+  --targets iphones \
+  --derived-data-root .temp/device-builds
+```
+
+Build physical iOS devices plus the Apple Silicon Mac `Designed for iPad/iPhone` destination:
+
+```bash
+DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer \
+$TOOLKIT/Scripts/ios-device-build.sh \
+  --workspace App.xcworkspace \
+  --scheme App \
+  --discovery usb \
+  --targets iphones,macbook \
+  --mac-destination 'platform=macOS,arch=arm64,variant=Designed for iPad' \
+  --derived-data-root .temp/device-builds
+```
+
+Build only the Apple Silicon Mac `Designed for iPad/iPhone` destination:
+
+```bash
+DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer \
+$TOOLKIT/Scripts/ios-device-build.sh \
+  --workspace App.xcworkspace \
+  --scheme App \
+  --targets macbook \
+  --mac-destination 'platform=macOS,arch=arm64,variant=Designed for iPad' \
+  --derived-data-root .temp/device-builds
+```
+
+Rules:
+
+- `--discovery` is an option set for physical-device interfaces: `usb`, `wifi`, or `usb,wifi`.
+- `--discovery` is required only when `--targets` includes `iphones`.
+- `--targets` is a destination-type set: `iphones`, `macbook`, or `iphones,macbook`.
+- Prefer `--discovery usb` for stable cable-connected work; Wi-Fi destinations can be stale or unstable.
+- Missing individual devices do not fail the command; the CLI builds whatever matching destinations are discovered.
+- No matching destinations is a failure.
+- Every planned destination gets its own DerivedData and `xcodebuild.log` under the required `--derived-data-root`.
+- Use `--dry-run` first when debugging discovery.
+
 ## Physical Device Runtime Logs
 
 When UI tests or runtime behavior are investigated on a physical iPhone, inspect the live device console instead of guessing from `xcodebuild` output alone.
@@ -162,6 +235,76 @@ Notes:
 - `--terminate-existing` avoids reading stale logs from an older app process.
 - This is the preferred path for investigating auth/network/runtime failures on device.
 - If you need broader system logs beyond one app process, fall back to Xcode Devices window or Console.app with the same physical device selected.
+
+## Simulator Runtime Logs
+
+When debugging simulator runtime behavior, use `simctl spawn` with unified logging and keep the raw stream in `.temp/` for later grepping.
+
+First resolve and boot the simulator:
+
+```bash
+DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer \
+xcrun simctl list devices available
+
+DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer \
+xcrun simctl boot <simulator-udid> 2>/dev/null || true
+
+DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer \
+xcrun simctl bootstatus <simulator-udid> -b
+```
+
+Start a task-scoped log stream before launching the app or UI test:
+
+```bash
+mkdir -p .temp/<task-id>
+
+DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer \
+xcrun simctl spawn <simulator-udid> \
+  log stream \
+  --style compact \
+  --level debug \
+  --predicate 'process == "AppName" OR subsystem CONTAINS "AppName" OR category CONTAINS "Auth" OR eventMessage CONTAINS "SDKSSO"' \
+  > .temp/<task-id>/sim-runtime-01.log 2>&1 &
+
+echo $! > .temp/<task-id>/sim-runtime-01.pid
+```
+
+Launch the app or run the UI test while the stream is active:
+
+```bash
+DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer \
+xcrun simctl launch --terminate-running-process \
+  <simulator-udid> \
+  <bundle-id>
+```
+
+Search the captured stream with focused patterns:
+
+```bash
+rg -n "SDKSSO|Auth|login\\.mts|client|scope|redirect|callback|error|failed|exception" \
+  .temp/<task-id>/sim-runtime-01.log
+```
+
+Stop the stream after triage:
+
+```bash
+kill "$(cat .temp/<task-id>/sim-runtime-01.pid)" 2>/dev/null || true
+```
+
+If the app writes file diagnostics, resolve the simulator data container and inspect it directly:
+
+```bash
+CONTAINER="$(DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer \
+  xcrun simctl get_app_container <simulator-udid> <bundle-id> data)"
+
+find "$CONTAINER/Documents" -maxdepth 4 -type f -print
+```
+
+Notes:
+- Use unified logs for SDK/framework logs, `os_log`, and app runtime events.
+- Use the app Documents container for explicit file diagnostics such as CSV logs.
+- Do not rely on `xcodebuild` output alone; it often misses the failing runtime line.
+- Keep logs under `.temp/` and name them with the task id plus a sequence number.
 
 ## Physical Device Tunnel Recovery
 
