@@ -1,0 +1,60 @@
+@startuml
+!theme plain
+
+title E2E Coordinator Session and Peer State Model
+
+[*] --> SessionCreated
+
+SessionCreated --> CoordinatorStarting : config parsed
+CoordinatorStarting --> CoordinatorReady : server bound
+CoordinatorStarting --> Failed : cannot bind host/port
+
+CoordinatorReady --> BuildingTests : build-for-testing or sample launch
+BuildingTests --> XcTestRunPrepared : .xctestrun patched
+BuildingTests --> Failed : build failed
+
+XcTestRunPrepared --> LaunchingPeers : peer plan ready
+
+state LaunchingPeers {
+  [*] --> PeerPending
+  PeerPending --> PeerStarting : start condition satisfied
+  PeerStarting --> PeerConnecting : process launched
+  PeerConnecting --> PeerRunning : websocket hello/welcome
+  PeerConnecting --> PeerFailed : handshake timeout
+  PeerStarting --> PeerFailed : launch failed
+  PeerRunning --> PeerWaiting : wait predicate requested
+  PeerWaiting --> PeerRunning : event observed
+  PeerWaiting --> PeerFailed : timeout
+  PeerRunning --> PeerReconnecting : socket closed
+  PeerReconnecting --> PeerRunning : reconnect with lastSeenSeq\nand replay events
+  PeerReconnecting --> PeerFailed : reconnect timeout
+  PeerRunning --> PeerPublishing : emit event
+  PeerPublishing --> PeerRunning : publish receipt accepted/enqueued/sent/acked
+  PeerPublishing --> PeerFailed : delivery barrier timeout
+  PeerRunning --> PeerFinished : test process exits 0
+  PeerRunning --> PeerFailed : test process exits non-zero
+  PeerFinished --> [*]
+  PeerFailed --> [*]
+}
+
+LaunchingPeers --> CollectingArtifacts : all peers finished
+LaunchingPeers --> Failed : any required peer failed
+
+CollectingArtifacts --> Succeeded : summary written
+CollectingArtifacts --> Failed : required artifact missing
+
+Succeeded --> [*]
+Failed --> [*]
+
+note right of LaunchingPeers
+  Peer ids and names are assigned
+  by the runner and injected via
+  test environment values.
+end note
+
+note bottom of PeerWaiting
+  Waits are event predicates,
+  not fixed sleeps.
+end note
+
+@enduml

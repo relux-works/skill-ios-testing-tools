@@ -1,0 +1,74 @@
+@startuml
+!theme plain
+
+title Multi-peer E2E Session - WebSocket Event Flow
+
+actor "Agent / Developer" as Dev
+participant "ios-e2e-runner\nSwift executable" as Runner
+participant "Coordinator\nWebSocket session bus" as Coord
+participant "xcodebuild peer A" as XcodeA
+participant "iPhone A .xctrunner\npeer=alpha" as PeerA
+participant "AppUnderTest.app A" as AppA
+participant "xcodebuild peer B" as XcodeB
+participant "iPhone B .xctrunner\npeer=beta" as PeerB
+participant "AppUnderTest.app B" as AppB
+
+Dev -> Runner: run --config e2e-coordinator.yml
+Runner -> Runner: parse config and create session id
+Runner -> Coord: start WebSocket server on Mac host:port
+Runner -> Runner: build-for-testing
+Runner -> Runner: patch .xctestrun env per peer
+
+par Start alpha peer
+  Runner -> XcodeA: test-without-building\nE2E_PEER_NAME=alpha
+  XcodeA -> PeerA: install/launch .xctrunner
+  PeerA -> AppA: launch product app
+  PeerA -> Coord: WS hello(session, peer, lastSeenSeq)
+  Coord --> PeerA: welcome(lastSeq)
+  PeerA -> Coord: publish alpha.ready\npayloadFormat=json
+  Coord -> Coord: assign seq, timestamps,\nappend event log
+  Coord --> PeerA: publishReceipt accepted
+else Wait before beta start
+  Runner -> Coord: wait/replay alpha.ready
+  Coord --> Runner: observed alpha.ready
+end
+
+Runner -> XcodeB: test-without-building\nE2E_PEER_NAME=beta
+XcodeB -> PeerB: install/launch .xctrunner
+PeerB -> AppB: launch product app
+PeerB -> Coord: WS hello(session, peer, lastSeenSeq=0)
+Coord --> PeerB: welcome + replay alpha.ready
+
+== Scenario synchronization ==
+PeerB -> Coord: publish beta.step_started
+PeerB -> AppB: wait for expected UI state
+PeerB -> Coord: publish beta.condition_detected
+
+PeerA -> Coord: waitFor beta.condition_detected\nhistory first, then live stream
+Coord --> PeerA: event beta.condition_detected
+PeerA -> AppA: continue product flow
+PeerA -> Coord: publish alpha.checkpoint_reached\nrequire ack from beta
+Coord -> PeerB: broadcast event
+PeerB --> Coord: eventAck
+Coord --> PeerA: publishReceipt ackedBy beta
+
+PeerB -> Coord: wait alpha.checkpoint_reached
+Coord --> PeerB: alpha.checkpoint_reached observed
+PeerB -> AppB: perform synchronized action
+PeerB -> Coord: publish beta.action_completed\npayloadFormat=json
+
+PeerA -> Coord: wait beta.action_completed
+Coord --> PeerA: beta.action_completed observed
+PeerA -> AppA: assert result
+PeerA -> Coord: publish alpha.result_visible
+
+== Completion ==
+PeerB -> Coord: publish beta.finished
+PeerA -> Coord: publish alpha.finished
+XcodeA --> Runner: exit status + xcresult
+XcodeB --> Runner: exit status + xcresult
+Runner -> Coord: read session summary
+Runner -> Runner: collect logs, event log, xcresults, screenshots
+Runner --> Dev: session result and artifact paths
+
+@enduml

@@ -1,0 +1,119 @@
+@startuml
+!theme plain
+
+title Reusable iOS E2E Coordinator - Component Boundaries
+
+skinparam componentStyle rectangle
+skinparam packageStyle rectangle
+
+actor "Agent / Developer" as Developer
+
+package "Consumer iOS project" as Consumer {
+  artifact "e2e-coordinator.yml\nproject config" as ConsumerConfig
+  component "Product UITests\nscenario code" as ProductUITests
+  component "AppUnderTest.app\nproduct under test" as AppUnderTest
+}
+
+package "Toolkit standalone sample\nconcept proof" as Sample {
+  artifact "sample-e2e-coordinator.yml" as SampleConfig
+  component "Fake peer alpha" as SamplePeerAlpha
+  component "Fake peer beta" as SamplePeerBeta
+  component "Fake peer observer" as SamplePeerObserver
+}
+
+package "UITestToolkit\nreusable package" as Toolkit {
+  package "UITestKit target\niOS UI test library" as UITestKit {
+    component "E2EClient" as E2EClient
+    component "E2EEnvironment" as E2EEnvironment
+    component "JSON payload codec" as JSONCodec
+    component "Evidence helpers" as EvidenceHelpers
+  }
+
+  package "IOSE2ERunner executable\nmacOS CLI" as Runner {
+    component "Config loader" as ConfigLoader
+    component "Session launcher" as SessionLauncher
+    component "XCTestRun patcher" as XCTestRunPatcher
+    component "Xcodebuild supervisor" as XcodebuildSupervisor
+    component "Artifact collector" as ArtifactCollector
+  }
+
+  package "IOSE2ECoordinatorCore\npure/testable core" as Core {
+    component "Session store" as SessionStore
+    component "Peer registry" as PeerRegistry
+    component "Event log" as EventLog
+    component "Delivery receipt tracker" as ReceiptTracker
+    component "Wait predicate engine" as PredicateEngine
+    component "Time envelope builder" as TimeEnvelope
+  }
+
+  package "Coordinator transport\nlocal Mac process" as Transport {
+    component "WebSocket server" as WebSocketServer
+    component "Event API" as EventAPI
+    component "Per-peer outgoing queues" as PeerQueues
+  }
+}
+
+node "Mac host" as MacHost {
+  component "Coordinator process" as CoordinatorProcess
+}
+
+node "Physical iPhone A" as PhoneA {
+  component "XCUITest runner A\n.xctrunner" as RunnerA
+}
+
+node "Physical iPhone B" as PhoneB {
+  component "XCUITest runner B\n.xctrunner" as RunnerB
+}
+
+Developer --> SessionLauncher : run ios-e2e-runner
+SessionLauncher --> ConfigLoader : read config
+ConfigLoader --> ConsumerConfig : parse project values
+SessionLauncher --> CoordinatorProcess : start session server
+CoordinatorProcess --> WebSocketServer
+WebSocketServer --> EventAPI
+WebSocketServer --> PeerQueues
+EventAPI --> SessionStore
+SessionStore --> PeerRegistry
+SessionStore --> EventLog
+SessionStore --> ReceiptTracker
+SessionStore --> PredicateEngine
+SessionStore --> TimeEnvelope
+
+SessionLauncher --> XCTestRunPatcher : inject E2E env
+SessionLauncher --> XcodebuildSupervisor : launch N peers
+XcodebuildSupervisor --> RunnerA : xcodebuild test-without-building
+XcodebuildSupervisor --> RunnerB : xcodebuild test-without-building
+XcodebuildSupervisor --> ArtifactCollector : logs and xcresults
+
+ProductUITests --> E2EClient : import UITestKit
+ProductUITests --> EvidenceHelpers : screenshots around sync points
+ProductUITests --> AppUnderTest : drive UI through XCUIApplication
+RunnerA --> E2EClient
+RunnerB --> E2EClient
+E2EClient --> E2EEnvironment : read session/peer env
+E2EClient --> JSONCodec : encode/decode JSON payloads
+E2EClient --> EventAPI : emit/wait/heartbeat over WebSocket
+
+SamplePeerAlpha --> E2EClient : same client protocol
+SamplePeerBeta --> E2EClient : same client protocol
+SamplePeerObserver --> E2EClient : same client protocol
+ConfigLoader --> SampleConfig : parse sample values
+
+note right of ConsumerConfig
+  Project-specific data stays here:
+  peer names, device ids, roles,
+  test selectors, app env values.
+end note
+
+note bottom of Core
+  Core must not contain product
+  semantics or domain names.
+  Event payload is generic JSON.
+end note
+
+note right of ReceiptTracker
+  emit can wait for delivery:
+  accepted, enqueued, sent, acked.
+end note
+
+@enduml

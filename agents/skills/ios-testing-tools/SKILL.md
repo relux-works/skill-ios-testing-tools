@@ -400,6 +400,69 @@ Read [references/physical-ios-ios-e2e-sync.md](references/physical-ios-ios-e2e-s
 
 For XCUITest runner-app marker files, host-side cross-device marker bridges, and screenshot/snapshot evidence contracts, also read [references/physical-ios-ios-runner-marker-sync.md](references/physical-ios-ios-runner-marker-sync.md).
 
+## Generalized WebSocket E2E Coordinator Sample
+
+Use the toolkit-local sample smoke to validate the reusable WebSocket coordinator, process peer runner, event log, receipt log, replay path, `acked` delivery barrier, JSON payload assertions, timestamp envelope, and deterministic artifact layout without any consumer product project or physical device.
+
+Run from the toolkit source repo:
+
+```bash
+DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer \
+./Scripts/run-e2e-sample-smoke.sh
+```
+
+The smoke writes artifacts under `.temp/e2e-sample/<session-id>/` and fails if the required events, receipts, peer markers, summary, or logs are missing.
+
+For physical devices, the XCUITest runner process must be able to open a TCP connection to the coordinator. Use global `coordinator.advertisedHost` when all peers share the same reachable host. Use peer-level `coordinatorHost` when different peers need different routes to the same coordinator; the runner keeps the global bind/port/path and injects a peer-specific `E2E_COORDINATOR_URL`.
+
+```yaml
+peers:
+  - name: peer-a
+    coordinatorHost: 192.168.50.10
+    launch:
+      kind: xctest
+      startWhen:
+        type: immediate
+```
+
+## Generalized Peer-Listener E2E Transport
+
+Use `coordinator.transport: peer-listener` when physical iOS peers cannot reach a Mac-hosted coordinator directly. The UI test peer starts a device-side TCP listener through `UITestE2EClient.fromEnvironment()`, the Mac runner starts `iproxy` for each device, and the Mac coordinator connects to every peer through host-local forwarded ports.
+
+This transport is project-neutral. Keep all product scenario semantics in the consumer project's UI tests and config. Do not add Tap2Cash-specific events, device names, bundle IDs, or business flow assumptions to this toolkit or skill.
+
+Consumer UI tests should import `IOSE2EPeerClient`, not `IOSE2ECoordinatorCore`, for generalized E2E coordination. Keep `UITestKit` for common UI helpers. Use `client.environment.peerNameValue` for scenario branching and `UITestE2EClient.publish` / `waitFor` for JSON event synchronization.
+
+Run the toolkit-local peer-listener smoke before attaching a product project:
+
+```bash
+DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer \
+./Scripts/run-e2e-peer-listener-sample-smoke.sh
+```
+
+Minimal config shape:
+
+```yaml
+coordinator:
+  transport: peer-listener
+
+peers:
+  - name: peer-a
+    launch:
+      kind: xctest
+      startWhen:
+        type: immediate
+    connection:
+      listenPort: 19131
+      connectHost: 127.0.0.1
+      connectPort: 18131
+      proxy:
+        kind: iproxy
+        udid: 00000000-0000000000000000
+```
+
+If a physical run fails before peer logs are written, first check CoreDevice state. A peer with `tunnelState: disconnected` or `ddiServicesAvailable: false` cannot reliably launch XCUITest even when `xcdevice list` says `available=true`.
+
 ## Main Workflow
 
 1. **Write UI** with accessibility identifiers
@@ -436,7 +499,7 @@ SPM package providing:
 
 Add as SPM dependency (local or remote).
 
-**Important:** Only add `ScreenshotKit` and `UITestKit` to UI test target dependencies. Do NOT add `extract-screenshots` — it uses `Foundation.Process` (unavailable on iOS) and will fail to build for iOS Simulator. Run it from terminal only.
+**Important:** Add `ScreenshotKit` and `UITestKit` to UI test target dependencies for standard UI testing. Add `IOSE2EPeerClient` only for UI test targets that use generalized E2E coordination. Do NOT add `extract-screenshots` — it uses `Foundation.Process` (unavailable on iOS) and will fail to build for iOS Simulator. Run it from terminal only.
 
 ### 2. Accessibility ID System
 

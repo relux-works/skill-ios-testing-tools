@@ -1,0 +1,74 @@
+schemaVersion: 1
+profileName: sample-three-peer
+
+session:
+  name: sample-three-peer
+  idPrefix: e2e
+
+coordinator:
+  bindHost: 127.0.0.1
+  advertisedHost: 127.0.0.1
+  port: 0
+  path: /e2e/session
+  transport: websocket
+
+artifacts:
+  root: ../../.temp/e2e-sample/${sessionId}
+
+defaults:
+  timeout: 10s
+  payloadFormat: json
+  delivery:
+    publishRequirement: accepted
+    ackTimeout: 5s
+    broadcast: exceptPublisher
+
+peers:
+  - name: alpha
+    role: primary
+    launch:
+      kind: process
+      startWhen:
+        type: immediate
+    process:
+      executable: ../../.build/debug/e2e-fake-peer
+      arguments:
+        - --scenario
+        - alpha
+        - --delay-ms
+        - "200"
+        - --timeout
+        - "10"
+      workingDirectory: ../..
+
+  - name: beta
+    role: secondary
+    launch:
+      kind: process
+      startWhen:
+        type: immediate
+    process:
+      executable: ../../.build/debug/e2e-fake-peer
+      arguments:
+        - --scenario
+        - beta
+        - --timeout
+        - "10"
+      workingDirectory: ../..
+
+  - name: observer
+    role: observer
+    launch:
+      kind: process
+      startWhen:
+        type: immediate
+    process:
+      executable: ../../.build/debug/e2e-fake-peer
+      arguments:
+        - --scenario
+        - observer
+        - --delay-ms
+        - "600"
+        - --timeout
+        - "10"
+      workingDirectory: ../..

@@ -1,0 +1,55 @@
+schemaVersion: 1
+profileName: dry-run-two-peer
+
+session:
+  name: dry-run-two-peer
+  idPrefix: e2e
+
+coordinator:
+  bindHost: 127.0.0.1
+  advertisedHost: 127.0.0.1
+  port: 8123
+  path: /e2e/session
+  transport: websocket
+
+artifacts:
+  root: .temp/e2e-runs/${sessionId}
+
+defaults:
+  xcodebuild:
+    derivedDataRoot: .temp/e2e-derived-data/${sessionId}
+
+peers:
+  - name: alpha
+    role: primary
+    launch:
+      kind: xctest
+      startWhen:
+        type: immediate
+    xctest:
+      workspace: App.xcworkspace
+      scheme: ProductUITests
+      destination:
+        platform: iOS
+        id: 00000000-0000000000000000
+      onlyTesting:
+        - ProductUITests/AlphaTests/testScenario
+    appEnvironment:
+      APP_E2E_MODE: "1"
+
+  - name: beta
+    role: secondary
+    launch:
+      kind: process
+      startWhen:
+        type: event
+        event:
+          name: alpha.ready
+          fromPeer: alpha
+          timeout: 30s
+    process:
+      executable: .build/debug/e2e-fake-peer
+      arguments:
+        - --peer
+        - beta
+      workingDirectory: .

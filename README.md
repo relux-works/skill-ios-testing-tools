@@ -8,11 +8,15 @@ Swift package for iOS/macOS UI testing with screenshot capture and validation.
 |---------|------|-------------|
 | **ScreenshotKit** | Library | Screenshot capture with structured naming |
 | **UITestKit** | Library | Page Object protocols, XCUIElement extensions, Allure annotations |
+| **IOSE2EPeerClient** | Library | Reusable UI test peer client for generalized E2E coordinator sessions |
 | **extract-screenshots** | CLI | Extract/organize screenshots from xcresult (macOS only) |
 | **snapshotsdiff** | CLI | Create visual diffs between snapshot images (macOS only) |
 | **ios-device-build** | CLI | Build an iOS app across connected physical devices and the Apple Silicon Mac iOS-app destination (macOS only) |
+| **ios-e2e-runner** | CLI | Coordinate generalized multi-peer iOS UI E2E sessions (macOS only) |
+| **e2e-fake-peer** | CLI | Local sample peer for coordinator smoke tests (macOS only) |
+| **e2e-listener-fake-peer** | CLI | Local sample peer for peer-listener transport smoke tests (macOS only) |
 
-> **Note:** Only add `ScreenshotKit` and `UITestKit` to your UI test target. The CLI tools use `Foundation.Process`/`AppKit` which are unavailable on iOS — do NOT add them as target dependencies. Run from terminal only.
+> **Note:** Add `ScreenshotKit` and `UITestKit` for standard UI testing. Add `IOSE2EPeerClient` only to UI test targets that participate in generalized E2E coordinator sessions. The CLI tools use `Foundation.Process`/`AppKit` which are unavailable on iOS — do NOT add them as target dependencies. Run from terminal only.
 
 ## Installation
 
@@ -32,7 +36,9 @@ Add to UI test target:
     name: "YourAppUITests",
     dependencies: [
         .product(name: "ScreenshotKit", package: "UITestToolkit"),
-        .product(name: "UITestKit", package: "UITestToolkit")
+        .product(name: "UITestKit", package: "UITestToolkit"),
+        // Optional for generalized multi-peer E2E tests:
+        // .product(name: "IOSE2EPeerClient", package: "UITestToolkit")
     ]
 )
 ```
@@ -159,6 +165,76 @@ Target selection is separate:
 
 Per-destination DerivedData and `xcodebuild.log` files are written under the required `--derived-data-root`.
 
+## iOS E2E Runner
+
+Use `ios-e2e-runner` to validate and run generalized multi-peer iOS UI E2E sessions. The runner config is project-neutral: product repositories provide peer mappings, Xcode destinations, selectors, and scenario event names in their own config or test code.
+
+Dry-run validates the config and prints the exact peer launch plan without building, installing, launching devices, or starting UI tests:
+
+```bash
+DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer \
+swift run ios-e2e-runner \
+  --config Samples/IOSE2ECoordinator/dry-run-two-peer.yaml \
+  --dry-run \
+  --session-id sample-session
+```
+
+The runner injects reserved `E2E_*` environment values into every peer process so UI tests can connect to the coordinator through `IOSE2EPeerClient`.
+
+Physical devices must be able to open TCP connections to the coordinator host. When all peers share the same LAN route, set `coordinator.advertisedHost` once. When peers need different routes to the same coordinator, for example separate wired or lab-network interfaces, set `coordinatorHost` on the individual peer; the runner keeps the global coordinator bind/port/path and injects a peer-specific `E2E_COORDINATOR_URL`.
+
+```yaml
+peers:
+  - name: peer-a
+    coordinatorHost: 192.168.50.10
+    launch:
+      kind: xctest
+      startWhen:
+        type: immediate
+```
+
+Build the local sample peer before running the process-peer sample:
+
+```bash
+DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer \
+swift build --product e2e-fake-peer
+```
+
+Then run the three-peer local sample:
+
+```bash
+DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer \
+./Scripts/run-e2e-sample-smoke.sh
+```
+
+### Peer-Listener Transport
+
+Use `coordinator.transport: peer-listener` when physical iOS peers cannot reach a Mac-hosted WebSocket coordinator directly. In this mode each UI test peer starts a device-side TCP listener, the Mac runner starts `iproxy` for each connected device, and the Mac-side coordinator connects to every peer through the forwarded localhost ports.
+
+Consumer UI tests should import `IOSE2EPeerClient` and use `UITestE2EClient.fromEnvironment()`. Do not import `IOSE2ECoordinatorCore` from product tests just to inspect peer names; use `client.environment.peerNameValue` for project scenario branching.
+
+```yaml
+coordinator:
+  transport: peer-listener
+
+peers:
+  - name: peer-a
+    connection:
+      listenPort: 19131
+      connectHost: 127.0.0.1
+      connectPort: 18131
+      proxy:
+        kind: iproxy
+        udid: 00000000-0000000000000000
+```
+
+Run the toolkit-local smoke:
+
+```bash
+DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer \
+./Scripts/run-e2e-peer-listener-sample-smoke.sh
+```
+
 ## Physical Device Runtime Logs
 
 When debugging runtime behavior on a physical iPhone, prefer the live device console over guessing from `xcodebuild` output.
@@ -187,6 +263,11 @@ Use `--console` for app-scoped logs, `--terminate-existing` to avoid stale proce
 | `run-tests-and-extract.sh` | Run UI tests + extract screenshots |
 | `extract-screenshots.sh` | Extract screenshots from xcresult |
 | `ios-device-build.sh` | Build an iOS app across discovered physical devices and optional Mac-compatible iOS destination |
+| `run-e2e-sample-smoke.sh` | Build the fake peer, run the local three-peer coordinator sample, and validate artifacts |
+| `run-e2e-peer-listener-sample-smoke.sh` | Build the listener fake peer, run the local peer-listener coordinator sample, and validate artifacts |
+| `ios-e2e-runner` | SwiftPM executable for generalized multi-peer E2E dry-run and execution |
+| `e2e-fake-peer` | SwiftPM executable used by local coordinator samples |
+| `e2e-listener-fake-peer` | SwiftPM executable used by local peer-listener samples |
 | `setup.sh` | Canonical global skill install into `~/.agents` |
 | `setup-project-skills.sh` | Install AI skill to a project-local `.agents` |
 | `setup-global-skills.sh` | Compatibility wrapper around `./setup.sh` |
