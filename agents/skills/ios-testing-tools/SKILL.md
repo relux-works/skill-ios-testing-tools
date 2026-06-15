@@ -10,6 +10,7 @@ description: |
   (6) Comparing snapshot diffs with snapshotsdiff CLI
   (7) Integrating with Allure for test reporting
   (8) Organizing shared test identifiers between app and test targets
+  (9) Building physical iOS/iOS E2E harnesses with XCUITest runner-app marker synchronization
   File types: Swift UI tests, XCUITest, xcresult, Allure reports, snapshot tests
 ---
 
@@ -396,6 +397,8 @@ xcrun devicectl manage ddis update --verbose --timeout 120
 For paired physical-device tests where two iPhones must coordinate roles such as sender/receiver, nearby discovery, BLE advertisement/scanning, or session handoff, use reactive orchestration instead of fixed sleeps.
 
 Read [references/physical-ios-ios-e2e-sync.md](references/physical-ios-ios-e2e-sync.md) before implementing or debugging a two-device harness.
+
+For XCUITest runner-app marker files, host-side cross-device marker bridges, and screenshot/snapshot evidence contracts, also read [references/physical-ios-ios-runner-marker-sync.md](references/physical-ios-ios-runner-marker-sync.md).
 
 ## Main Workflow
 
