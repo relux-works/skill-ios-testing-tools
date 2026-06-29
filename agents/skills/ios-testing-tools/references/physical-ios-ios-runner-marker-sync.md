@@ -43,12 +43,12 @@ Documents/e2e-markers/<marker-name>
 When a peer emits a marker:
 
 1. The XCTest writes a local marker file in its own runner container.
-2. The XCTest prints a stable stdout line, for example `T2C_E2E_MARKER sender_peer_detected`.
+2. The XCTest prints a stable stdout line, for example `APP_E2E_MARKER peer_beta_peer_detected`.
 3. The host harness sees the stdout line in that device's `xcodebuild` log.
 4. The host copies the marker file into the other device's runner container.
 5. The other XCTest unblocks when `waitForPeerE2EMarker` sees the copied marker file.
 
-Use either raw marker lines or a prefixed format such as `T2C_E2E_MARKER <marker>`. The host harness must grep the exact format emitted by the tests.
+Use either raw marker lines or a prefixed format such as `APP_E2E_MARKER <marker>`. The host harness must grep the exact format emitted by the tests.
 
 Copy to a physical device runner container with `devicectl`:
 
@@ -66,13 +66,13 @@ xcrun devicectl device copy to \
 Keep marker names stable and domain-specific:
 
 ```text
-receiver_ready
-sender_lookup_started
-sender_peer_detected
-receiver_transfer_requested
-receiver_ready_acknowledged
-sender_confirmed
-receiver_result_visible
+peer_alpha_ready
+peer_beta_lookup_started
+peer_beta_peer_detected
+peer_alpha_action_requested
+peer_alpha_ready_acknowledged
+peer_beta_confirmed
+peer_alpha_result_visible
 ```
 
 ## XCTest Helpers
@@ -101,7 +101,7 @@ private func e2eMarkerDirectory() throws -> URL {
 func writeE2EMarker(_ marker: String) throws {
     let markerURL = try e2eMarkerDirectory().appendingPathComponent(marker)
     try Data().write(to: markerURL, options: .atomic)
-    print("T2C_E2E_MARKER \(marker)")
+    print("APP_E2E_MARKER \(marker)")
 }
 
 func waitForPeerE2EMarker(
@@ -126,9 +126,9 @@ func waitForPeerE2EMarker(
 Screenshot around each marker:
 
 ```swift
-screenshot(step: 4, "sender_peer_detected_before_marker", app: app)
-try writeE2EMarker("sender_peer_detected")
-screenshot(step: 5, "sender_peer_detected_after_marker", app: app)
+screenshot(step: 4, "peer_beta_peer_detected_before_marker", app: app)
+try writeE2EMarker("peer_beta_peer_detected")
+screenshot(step: 5, "peer_beta_peer_detected_after_marker", app: app)
 ```
 
 When state can flap, capture before and after the stability wait:
@@ -139,7 +139,7 @@ XCTAssertTrue(peerCell.waitForExistence(timeout: 3))
 RunLoop.current.run(until: Date().addingTimeInterval(1.0))
 XCTAssertTrue(peerCell.exists)
 screenshot(step: 6, "peer_visible_stable", app: app)
-try writeE2EMarker("sender_peer_visible_stable")
+try writeE2EMarker("peer_beta_peer_visible_stable")
 ```
 
 ## Host Harness Shape
@@ -153,15 +153,15 @@ build-for-testing
 resolve .xctestrun
 resolve XCUITest runner bundle id
 
-start receiver xcodebuild test-without-building in background
-wait_for_log_marker(receiver.log, "receiver_ready")
+start peer alpha xcodebuild test-without-building in background
+wait_for_log_marker(peer-alpha.log, "peer_alpha_ready")
 
-start sender xcodebuild test-without-building in background
+start peer beta xcodebuild test-without-building in background
 
 while either process is running:
-  scan peer-a log for new T2C_E2E_MARKER lines
+  scan peer-a log for new APP_E2E_MARKER lines
   copy each new peer-a marker into peer-b runner container
-  scan peer-b log for new T2C_E2E_MARKER lines
+  scan peer-b log for new APP_E2E_MARKER lines
   copy each new peer-b marker into peer-a runner container
   fail early if a process exits before required markers appear
 
@@ -179,7 +179,7 @@ wait_for_log_marker() {
   local deadline=$((SECONDS + timeout_seconds))
 
   while [ "$SECONDS" -lt "$deadline" ]; do
-    if rg -q "T2C_E2E_MARKER ${marker}" "$log_file"; then
+    if rg -q "APP_E2E_MARKER ${marker}" "$log_file"; then
       return 0
     fi
     sleep 1
@@ -194,8 +194,8 @@ Track copied markers in the bridge to avoid duplicate copies:
 
 ```text
 marker-bridge.log
-  peer-a -> peer-b sender_lookup_started copied
-  peer-b -> peer-a receiver_ready copied
+  peer-a -> peer-b peer_beta_lookup_started copied
+  peer-b -> peer-a peer_alpha_ready copied
 ```
 
 Patch the `.xctestrun` only when the harness needs per-device environment, launch arguments, or result bundle paths. Keep the patched copies under the run directory.
@@ -205,11 +205,11 @@ Patch the `.xctestrun` only when the harness needs per-device environment, launc
 For physical multi-device e2e, use screenshots as evidence snapshots. Capture them at the same semantic boundaries as markers:
 
 - test launch and initial screen
-- role entered, for example receiver mode or sender lookup
+- role entered, for example an observing mode or peer lookup
 - peer discovered
 - peer still visible after a stability wait
-- request sent
-- request received
+- project-specific request sent
+- project-specific request received
 - ready/ack state
 - confirmation submitted
 - result screen visible

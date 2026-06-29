@@ -1,6 +1,6 @@
 # Physical iOS/iOS E2E Synchronization
 
-Use this reference for end-to-end tests where two physical iPhones must coordinate app state, nearby discovery, BLE advertisement/scanning, peer visibility, or session handoff.
+Use this reference for end-to-end tests where two physical iPhones must coordinate app state, project-specific discovery signals, peer visibility, or session handoff.
 
 ## Core Rule
 
@@ -14,12 +14,12 @@ Fixed sleeps hide the real failure point and make passing runs slow. Reactive wa
 
 The harness should follow this shape:
 
-1. Start device A in its initial long-running role, for example receiver/reclamation mode.
-2. Start device B test, for example sender lookup.
-3. Wait until device B reports the expected peer/state marker.
+1. Start device A in its initial long-running project-specific mode as peer alpha.
+2. Start device B test as peer beta.
+3. Wait until peer beta reports the expected peer/state marker.
 4. Recheck the state after a short stability interval inside the test when the signal can flap.
-5. Trigger the next transition on device A.
-6. Wait until device B reports the next marker.
+5. Trigger the next transition on peer alpha.
+6. Wait until peer beta reports the next marker.
 7. Repeat until the scenario finishes.
 8. Clean up both devices.
 
@@ -27,7 +27,7 @@ Bounded timeouts are still required, but they guard a wait. They must not be the
 
 ## Long-Running Roles
 
-Do not use a short XCUITest method to keep a device in a long-running role if the app must stay alive after the method returns. XCTest teardown can close or reset the app, leaving the other device looking for a peer that is already gone.
+Do not use a short XCUITest method to keep a device in a long-running project-specific mode if the app must stay alive after the method returns. XCTest teardown can close or reset the app, leaving the other device looking for a peer that is already gone.
 
 Prefer this split:
 
@@ -36,18 +36,18 @@ Prefer this split:
 - Use short XCUITest methods only to poke the running app into the next state, such as switching tabs or toggling a mode.
 - Keep assertions and screenshots on the observing endpoint where possible.
 
-Example receiver launch:
+Example long-running peer launch:
 
 ```bash
-automation_env='{"APP_AUTOMATION_SIGNED_IN":"true","APP_AUTOMATION_RECEIVER_MODE":"true"}'
+automation_env='{"APP_AUTOMATION_SIGNED_IN":"true","APP_AUTOMATION_PEER_ROLE":"alpha","APP_AUTOMATION_INITIAL_MODE":"project-specific"}'
 
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer \
 xcrun devicectl device process launch \
-  --device <receiver-udid> \
+  --device <peer-alpha-udid> \
   --terminate-existing \
   --environment-variables "$automation_env" \
-  --json-output .temp/receiver-launch.json \
-  --log-output .temp/receiver-launch.log \
+  --json-output .temp/peer-alpha-launch.json \
+  --log-output .temp/peer-alpha-launch.log \
   <bundle-id>
 ```
 
@@ -57,13 +57,13 @@ Use `--environment-variables` when possible. Dash-prefixed app launch arguments 
 
 Markers should be emitted at points where the harness can safely advance:
 
-- lookup started
+- project-specific lookup started
 - peer detected
 - peer still visible after a short stability recheck
-- peer disappeared after the other device leaves advertisement/receiver mode
+- peer disappeared after the other device leaves a project-specific discoverable mode
 - peer reappeared after the other device returns
-- receiver mode stopped
-- receiver mode restarted
+- project-specific mode stopped
+- project-specific mode restarted
 
 Use screenshot attachments for these markers so the `xcresult` tells the same story as the text log.
 
@@ -72,19 +72,19 @@ Use screenshot attachments for these markers so the `xcresult` tells the same st
 Use one long-running test process for the observing side and short attach/poke tests for the controlled side:
 
 ```text
-build/install receiver app
-launch receiver app in receiver mode
+build/install app for peer alpha
+launch peer alpha app in a project-specific initial mode
 
-start sender XCUITest in background
-wait_for_log_marker(sender.log, "peer_still_visible")
+start peer beta XCUITest in background
+wait_for_log_marker(peer-beta.log, "peer_still_visible")
 
-run receiver XCUITest: switch_to_send_mode
-wait_for_log_marker(sender.log, "peer_disappeared")
+run peer alpha XCUITest: switch_to_project_mode_b
+wait_for_log_marker(peer-beta.log, "peer_disappeared")
 
-run receiver XCUITest: switch_to_receive_mode
-wait for sender XCUITest to finish and assert "peer_reappeared"
+run peer alpha XCUITest: switch_to_project_mode_a
+wait for peer beta XCUITest to finish and assert "peer_reappeared"
 
-terminate receiver app
+terminate peer alpha app
 ```
 
 `wait_for_log_marker` should:
@@ -126,11 +126,11 @@ Run a small smoke XCUITest on each phone before starting a long paired run when 
 
 ## Common Problems
 
-### Receiver App Closes Too Early
+### Long-Running Peer App Closes Too Early
 
-Symptom: the sender reaches lookup, but the receiver app is no longer running.
+Symptom: the observing peer reaches lookup, but the long-running peer app is no longer running.
 
-Fix: do not boot the receiver through a short XCUITest. Build/install the app, launch it as a normal app process, and use short attach tests only for transitions.
+Fix: do not boot the long-running peer through a short XCUITest. Build/install the app, launch it as a normal app process, and use short attach tests only for transitions.
 
 ### Device Is Paired But CoreDevice Tunnel Fails
 
@@ -171,11 +171,11 @@ Fix: inspect attachments with `xcresulttool test-report` / attachment commands m
 For each paired-device run, keep artifacts under a task-scoped `.temp/` directory:
 
 - full harness log
-- receiver build log
-- receiver install JSON/log
-- receiver launch JSON/log
-- receiver poke test logs and `.xcresult` bundles
-- sender log and `.xcresult` bundle
+- peer alpha build log
+- peer alpha install JSON/log
+- peer alpha launch JSON/log
+- peer alpha poke test logs and `.xcresult` bundles
+- peer beta log and `.xcresult` bundle
 - device readiness JSON/logs
 
 Record the successful run directory in the task board or worklog so the next agent can inspect the exact evidence.

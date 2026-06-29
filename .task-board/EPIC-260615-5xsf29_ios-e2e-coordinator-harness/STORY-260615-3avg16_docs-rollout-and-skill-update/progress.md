@@ -1,5 +1,5 @@
 ## Status
-backlog
+done
 
 ## Assigned To
 (none)
@@ -8,7 +8,7 @@ backlog
 2026-06-15T10:10:48Z
 
 ## Last Update
-2026-06-15T10:29:10Z
+2026-06-29T15:35:17Z
 
 ## Blocked By
 - STORY-260615-3lefgg

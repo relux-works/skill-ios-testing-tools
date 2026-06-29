@@ -53,7 +53,7 @@ Pick the execution platform from the target declaration before running anything.
 
 ## Apple Silicon Mac iOS-App Runtime
 
-Use this path when the product app is an iOS app and the test environment needs a Mac-side peer, receiver, or host process on Apple Silicon. This is **not** a separate macOS app target and not Catalyst. It is the existing iPhoneOS app running on the Mac as `Designed for iPad/iPhone`.
+Use this path when the product app is an iOS app and the test environment needs a Mac-side peer or host process on Apple Silicon. This is **not** a separate macOS app target and not Catalyst. It is the existing iPhoneOS app running on the Mac as `Designed for iPad/iPhone`.
 
 First verify that Xcode exposes the destination:
 
@@ -394,7 +394,7 @@ xcrun devicectl manage ddis update --verbose --timeout 120
 
 ## Physical iOS/iOS E2E Synchronization
 
-For paired physical-device tests where two iPhones must coordinate roles such as sender/receiver, nearby discovery, BLE advertisement/scanning, or session handoff, use reactive orchestration instead of fixed sleeps.
+For paired physical-device tests where two iPhones must coordinate roles such as observing peer, controlled peer, project-specific discovery signals, project-specific state transitions, or session handoff, use reactive orchestration instead of fixed sleeps.
 
 Read [references/physical-ios-ios-e2e-sync.md](references/physical-ios-ios-e2e-sync.md) before implementing or debugging a two-device harness.
 
@@ -429,7 +429,7 @@ peers:
 
 Use `coordinator.transport: peer-listener` when physical iOS peers cannot reach a Mac-hosted coordinator directly. The UI test peer starts a device-side TCP listener through `UITestE2EClient.fromEnvironment()`, the Mac runner starts `iproxy` for each device, and the Mac coordinator connects to every peer through host-local forwarded ports.
 
-This transport is project-neutral. Keep all product scenario semantics in the consumer project's UI tests and config. Do not add Tap2Cash-specific events, device names, bundle IDs, or business flow assumptions to this toolkit or skill.
+This transport is project-neutral. Keep all product scenario semantics in the consumer project's UI tests and config. Do not add consumer-specific events, device names, bundle IDs, or business flow assumptions to this toolkit or skill.
 
 Consumer UI tests should import `IOSE2EPeerClient`, not `IOSE2ECoordinatorCore`, for generalized E2E coordination. Keep `UITestKit` for common UI helpers. Use `client.environment.peerNameValue` for scenario branching and `UITestE2EClient.publish` / `waitFor` for JSON event synchronization.
 

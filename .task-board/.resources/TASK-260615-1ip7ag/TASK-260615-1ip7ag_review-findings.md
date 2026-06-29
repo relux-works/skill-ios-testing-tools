@@ -1,0 +1,1 @@
+Task not fully aligned with AC: user-facing docs do not contain a Tap2Cash consumer example. AC explicitly requires this. Repo-wide search found zero Tap2Cash/tap2cash occurrences in README.md, agents/skills/ios-testing-tools, .spec, and Samples. Non-dry-run ios-e2e-runner invocation is documented in README, so that AC item is now covered.
