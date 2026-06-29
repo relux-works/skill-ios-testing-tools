@@ -135,9 +135,12 @@ Required object.
 | `advertisedHost` | string | yes | Host peers use to connect. `auto` means runner resolves a reachable host address. |
 | `port` | integer | yes | WebSocket port. `0` means choose a free port and inject the resolved URL into peers. |
 | `path` | string | no | WebSocket path. Default: `/e2e/session`. |
-| `transport` | enum | yes | MVP value: `websocket`. |
+| `transport` | enum | yes | `websocket` or `peer-listener`. |
 
 Physical iOS devices usually cannot connect to `127.0.0.1` on the Mac. Use `advertisedHost: auto` or an explicit LAN address.
+
+`websocket` starts a Mac-hosted coordinator that peers connect to through `E2E_COORDINATOR_URL`.
+`peer-listener` is for physical-device setups where peers expose a device-side TCP listener and the Mac runner connects through the peer `connection` block, usually with `iproxy`.
 
 ### `artifacts`
 
@@ -211,6 +214,8 @@ Required non-empty array.
 | `name` | string | yes | Stable unique peer name injected into the test environment. |
 | `role` | string | no | Project-neutral role label for logs and summaries. |
 | `metadata` | JSON object | no | Opaque peer metadata copied to summaries. |
+| `coordinatorHost` | string | no | Peer-specific advertised coordinator host for `websocket` transport. |
+| `connection` | object | required when `coordinator.transport=peer-listener` | Peer listener connection and optional proxy settings. |
 | `launch` | object | yes | Launch type and start condition. |
 | `xctest` | object | required when `launch.kind=xctest` | Xcode UI test launch settings. |
 | `process` | object | required when `launch.kind=process` | Local process launch settings for samples/fake peers. |
@@ -330,6 +335,35 @@ process:
 | `arguments` | string array | no | Process arguments. |
 | `workingDirectory` | path | no | Process working directory. Default: config directory. |
 
+### `connection`
+
+Required when `coordinator.transport=peer-listener`.
+
+```yaml
+connection:
+  listenPort: 19131
+  connectHost: 127.0.0.1
+  connectPort: 18131
+  proxy:
+    kind: iproxy
+    udid: 00000000-0000000000000000
+```
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `listenPort` | integer | yes | TCP port the UI test peer listens on inside the peer process. |
+| `connectHost` | string | no | Host the Mac-side coordinator connects to. Default: `127.0.0.1`. |
+| `connectPort` | integer | yes | TCP port the Mac-side coordinator connects to. With `iproxy`, this is the forwarded localhost port. |
+| `proxy` | object | no | Optional host-side proxy process. MVP supports `kind: iproxy`. |
+
+#### `connection.proxy`
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `kind` | enum | yes | MVP value: `iproxy`. |
+| `udid` | string | no | Physical device UDID. If omitted, runner uses `xctest.destination.id` when available. |
+| `executable` | path | no | Optional `iproxy` executable override. |
+
 ## Reserved Environment
 
 The runner injects these variables into every peer process:
@@ -341,8 +375,10 @@ The runner injects these variables into every peer process:
 | `E2E_PEER_NAME` | Config peer name. |
 | `E2E_PEER_ROLE` | Config peer role, if present. |
 | `E2E_COORDINATOR_URL` | Resolved WebSocket URL. |
+| `E2E_TRANSPORT` | Config coordinator transport: `websocket` or `peer-listener`. |
 | `E2E_ARTIFACTS_DIR` | Peer artifact directory. |
 | `E2E_LAST_SEEN_SEQ` | Initial sequence cursor. Usually `0`. |
+| `E2E_PEER_LISTEN_PORT` | Peer listener port. Present only when the peer launch plan has `connection`. |
 
 Config `appEnvironment` must not define keys with the `E2E_` prefix. The runner rejects collisions.
 
@@ -485,11 +521,15 @@ The runner must reject a config before launching peers when:
 
 - `schemaVersion` is unsupported.
 - `profileName` is empty.
-- `coordinator.transport` is not `websocket`.
+- `coordinator.transport` is not `websocket` or `peer-listener`.
 - `coordinator.port` is outside `0...65535`.
 - `advertisedHost` resolves to localhost while any peer destination is a physical iOS device.
 - `peers` is empty.
 - Peer names are duplicated or invalid.
+- `coordinator.transport=peer-listener` is used and any peer lacks `connection`.
+- `connection.listenPort` or `connection.connectPort` is outside `1...65535`.
+- `connection.proxy.kind` is present and is not `iproxy`.
+- `connection.proxy.kind=iproxy` is configured without `proxy.udid` or `xctest.destination.id`.
 - A peer has `launch.kind=xctest` without `xctest`.
 - A peer has `launch.kind=process` without `process`.
 - `xctest` defines both `workspace` and `project`, or neither.

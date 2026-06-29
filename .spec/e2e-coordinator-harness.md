@@ -13,12 +13,12 @@ Build a reusable iOS end-to-end testing coordinator in `UITestToolkit` so projec
 - Use the project-neutral config schema in `e2e-coordinator-config-schema.md` for runner inputs and resolved run summaries.
 - Model event messages as generic JSON envelopes with typed JSON payloads, `payloadFormat`, timestamp fields, sequence numbers, and delivery receipt semantics.
 - Support event waits through history-first replay followed by live WebSocket stream consumption.
-- Keep project scenarios inside project UI tests; the toolkit must not know project domain concepts such as Tap2Cash transfer semantics.
+- Keep project scenarios inside project UI tests; the toolkit must not know project-specific domain concepts or business-flow semantics.
 - Preserve existing project harnesses while the new runner is developed and validated.
 
 ## Initial Consumer
 
-Use Tap2Cash iOS as the first consumer playground, but do not break or replace its existing physical-device e2e scripts during the first implementation branch.
+Use a consumer iOS app as the first integration playground, but do not break or replace its existing physical-device e2e scripts during the first implementation branch.
 
 ## Constraints
 
@@ -28,13 +28,13 @@ Use Tap2Cash iOS as the first consumer playground, but do not break or replace i
 - Store run artifacts under a task-scoped `.temp/` directory in the consumer project.
 - Support physical iOS devices first; simulator support should not be blocked by the design.
 - Support more than two peers by modeling peers and events generically.
-- Defer gRPC bidirectional streaming until WebSocket sample and Tap2Cash proof results show a concrete need.
+- Defer gRPC bidirectional streaming until WebSocket sample and consumer proof results show a concrete need.
 
 ## Acceptance Criteria
 
 - A toolkit CLI can create an E2E session from configuration and launch configured peers with unique environment values.
 - A `UITestKit` client can connect over WebSocket, emit JSON events, wait for session events from a UI test runner, and request delivery barriers when a peer must not continue before recipients receive or ack the event.
 - Coordinator state, peer registration, event matching, replay, delivery receipts, timeout behavior, timestamp envelopes, JSON payload handling, and config parsing are covered by Swift tests.
-- A standalone toolkit sample proves the protocol with fake peers before Tap2Cash integration starts.
-- Tap2Cash can add a config-only integration slice that runs alongside the old harness without modifying or deleting the old scripts.
-- Device readiness smoke results are recorded before physical Tap2Cash validation begins.
+- A standalone toolkit sample proves the protocol with fake peers before consumer integration starts.
+- A consumer project can add a config-only integration slice that runs alongside the old harness without modifying or deleting the old scripts.
+- Device readiness smoke results are recorded before physical consumer validation begins.

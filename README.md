@@ -169,6 +169,10 @@ Per-destination DerivedData and `xcodebuild.log` files are written under the req
 
 Use `ios-e2e-runner` to validate and run generalized multi-peer iOS UI E2E sessions. The runner config is project-neutral: product repositories provide peer mappings, Xcode destinations, selectors, and scenario event names in their own config or test code.
 
+The full config contract, reserved environment keys, and artifact layout are documented in [.spec/e2e-coordinator-config-schema.md](.spec/e2e-coordinator-config-schema.md).
+
+Keep product-specific examples in the consumer project that owns the workflow. Toolkit docs should use neutral peer names, event names, bundle placeholders, and device placeholders.
+
 Dry-run validates the config and prints the exact peer launch plan without building, installing, launching devices, or starting UI tests:
 
 ```bash
@@ -179,7 +183,39 @@ swift run ios-e2e-runner \
   --session-id sample-session
 ```
 
+To run a real coordinator session, use the same config shape without `--dry-run`. The config must point at reachable physical devices or simulators, valid Xcode projects, and UI test selectors owned by the consumer project:
+
+```bash
+DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer \
+swift run ios-e2e-runner \
+  --config path/to/e2e-physical.yaml \
+  --session-id physical-validation-001 \
+  --developer-dir /Applications/Xcode.app/Contents/Developer
+```
+
 The runner injects reserved `E2E_*` environment values into every peer process so UI tests can connect to the coordinator through `IOSE2EPeerClient`.
+
+UI test targets that participate in a coordinator session should import `IOSE2EPeerClient` and create the peer client from the injected environment:
+
+```swift
+import IOSE2EPeerClient
+import XCTest
+
+final class PeerScenarioTests: XCTestCase {
+    func testScenario() async throws {
+        let client = try await UITestE2EClient.fromEnvironment()
+        defer { client.close() }
+
+        if client.environment.peerNameValue == "peer-a" {
+            try await client.publish("peer-a.ready", delivery: .acked())
+            _ = try await client.waitFor("peer-b.ready", timeout: 30)
+        } else {
+            _ = try await client.waitFor("peer-a.ready", timeout: 30)
+            try await client.publish("peer-b.ready", delivery: .acked())
+        }
+    }
+}
+```
 
 Physical devices must be able to open TCP connections to the coordinator host. When all peers share the same LAN route, set `coordinator.advertisedHost` once. When peers need different routes to the same coordinator, for example separate wired or lab-network interfaces, set `coordinatorHost` on the individual peer; the runner keeps the global coordinator bind/port/path and injects a peer-specific `E2E_COORDINATOR_URL`.
 

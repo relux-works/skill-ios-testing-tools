@@ -191,10 +191,10 @@ func printUsage() {
       --help                      Show this help.
 
     Examples:
-      ios-device-build --workspace Tap2CashDemo.xcworkspace --scheme Tap2CashDemo --discovery usb --targets iphones --derived-data-root .temp/device-builds
+      ios-device-build --workspace App.xcworkspace --scheme App --discovery usb --targets iphones --derived-data-root .temp/device-builds
       ios-device-build --project App.xcodeproj --scheme App --discovery usb,wifi --targets iphones --derived-data-root .temp/device-builds
-      ios-device-build --workspace Tap2CashDemo.xcworkspace --scheme Tap2CashDemo --discovery usb --targets iphones,macbook --mac-destination 'platform=macOS,arch=arm64,variant=Designed for iPad' --derived-data-root .temp/device-builds
-      ios-device-build --workspace Tap2CashDemo.xcworkspace --scheme Tap2CashDemo --targets macbook --mac-destination 'platform=macOS,arch=arm64,variant=Designed for iPad' --derived-data-root .temp/device-builds
+      ios-device-build --workspace App.xcworkspace --scheme App --discovery usb --targets iphones,macbook --mac-destination 'platform=macOS,arch=arm64,variant=Designed for iPad' --derived-data-root .temp/device-builds
+      ios-device-build --workspace App.xcworkspace --scheme App --targets macbook --mac-destination 'platform=macOS,arch=arm64,variant=Designed for iPad' --derived-data-root .temp/device-builds
     """)
 }
 
