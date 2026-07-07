@@ -146,6 +146,12 @@ The source repo path used by the local workflow is:
 TOOLKIT=/Users/alexis/src/relux-works/skill-ios-testing-tools
 ```
 
+### Physical Device Build Means Install
+
+When the user asks to build "on", "for", or "to" a physical iPhone/iPad, treat the request as **build a signed app bundle and install it on the target device** unless the user explicitly asks for compile-only validation.
+
+`xcodebuild build -destination 'platform=iOS,id=<udid>'` only proves that the app can compile and sign for that device class. It does not update the app installed on the phone. After a successful physical-device build, install the resulting `.app` with `devicectl device install app --device <udid> <path-to-app>` or a project-provided build/install wrapper, then verify the install command succeeded. Launch the app as a separate step only when the user asks to run it or when runtime validation is part of the task.
+
 Build only cable-connected physical iPhones/iPads:
 
 ```bash

@@ -1,0 +1,1 @@
+Updated ios-testing-tools source skill guidance so physical-device build requests mean build plus install unless compile-only is explicit. Ran ./setup.sh to refresh the installed skill copy. Verification: swift build passed, task-board validate passed, and source SKILL.md matches ~/.agents/skills/ios-testing-tools/SKILL.md for the new guidance.
