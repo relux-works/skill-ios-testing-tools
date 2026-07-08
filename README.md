@@ -16,7 +16,7 @@ Swift package for iOS/macOS UI testing with screenshot capture and validation.
 | **e2e-fake-peer** | CLI | Local sample peer for coordinator smoke tests (macOS only) |
 | **e2e-listener-fake-peer** | CLI | Local sample peer for peer-listener transport smoke tests (macOS only) |
 
-> **Note:** Add `ScreenshotKit` and `UITestKit` for standard UI testing. Add `IOSE2EPeerClient` only to UI test targets that participate in generalized E2E coordinator sessions. The CLI tools use `Foundation.Process`/`AppKit` which are unavailable on iOS — do NOT add them as target dependencies. Run from terminal only.
+> **Note:** Add `ScreenshotKit` and `UITestKit` for standard UI testing. Add `IOSE2EPeerClient` only to UI test targets that participate in generalized E2E coordinator sessions. The CLI tools use `Foundation.Process`/`AppKit` which are unavailable on iOS, so do NOT add them as target dependencies. Run from terminal only.
 
 ## Installation
 
@@ -321,8 +321,8 @@ cd /path/to/your/project
 ```
 
 Options:
-- `-output dir` — where to put screenshots (default: `.temp/{timestamp}_screenshots`, relative to CWD)
-- `-destination "..."` — simulator to use (default: iPhone 16)
+- `-output dir`: where to put screenshots (default: `.temp/{timestamp}_screenshots`, relative to CWD)
+- `-destination "..."`: simulator to use (default: iPhone 16)
 
 The simulator examples above are for iOS app/UI-test flows. Package module unit and integration tests should stay on macOS when macOS is supported by the package.
 
@@ -492,6 +492,16 @@ See `ios-testing-tools` skill for detailed examples.
 - Xcode 26+
 
 Run `./Scripts/check-tools.sh` to verify.
+
+## The Relux stack
+
+This package is part of the Relux stack: the
+[Relux](https://github.com/relux-works/swift-relux) unidirectional data-flow
+architecture for Swift 6, a family of modules around it, and agent-ready testing
+tools. The stack is how we build MVPs fast on agentic rails and then scale them into
+enterprise-grade apps: Tuist workspaces, strict modularization, and a UDF architecture
+proven in production for years. Browse the full picture in the
+[Relux Works open-source catalog](https://relux.works/en/open-source/).
 
 <!-- relux-ecosystem:start -->
 
