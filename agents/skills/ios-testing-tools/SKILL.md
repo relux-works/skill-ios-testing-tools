@@ -524,13 +524,52 @@ Share IDs between app and test targets. See [references/shared-identifiers.md](r
 
 Template: `assets/TestEnvShared/`. Add to both main app and UI test targets.
 
-### 4. Page Object Pattern
+### 4. Test-Directed IoC Resolution
+
+When a UI test needs a different app dependency graph for one scenario, prefer an explicit launch argument or launch environment flag that the app registry reads before resolving the dependency.
+
+Use this shape:
+
+1. Define the key in the shared test constants target, for example `UITest.Args.Key.analyticsDiagnosticsMirrorEnabled`.
+2. Expose a typed helper next to it, for example `UITest.Args.analyticsDiagnosticsMirrorEnabled`.
+3. Pass the helper only from the tests that need the alternate dependency.
+4. In app code, parse `ProcessInfo.processInfo.arguments` and `ProcessInfo.processInfo.environment` through the app automation/config layer.
+5. In the IoC registry, resolve the production instance by default and switch to the test-specific wrapper or stub only when the explicit flag is present.
+
+Do not hardcode raw launch-argument strings independently in tests, registries, scripts, or Info.plist fallbacks. Keep the keys in shared constants and reuse the same parser semantics for arguments and environment values.
+
+```swift
+// TestEnvShared/UITest/UITest+Args.swift
+extension UITest.Args.Key {
+    static let analyticsDiagnosticsMirrorEnabled =
+        "APP_AUTOMATION_ANALYTICS_DIAGNOSTICS_MIRROR_ENABLED"
+}
+
+extension UITest.Args {
+    static let analyticsDiagnosticsMirrorEnabled =
+        ["-\(Key.analyticsDiagnosticsMirrorEnabled)", "true"]
+}
+
+// UI test
+let app = XCUIApplication()
+app.launchArguments += UITest.Args.analyticsDiagnosticsMirrorEnabled
+app.launch()
+
+// App registry
+let service: any Analytics.Service = AppMetricaAnalyticsService()
+if AutomationConfig.current.analyticsDiagnosticsMirrorEnabled {
+    return DiagnosticsMirrorAnalyticsService(upstream: service)
+}
+return service
+```
+
+### 5. Page Object Pattern
 
 UI test structure. See [references/page-object-pattern.md](references/page-object-pattern.md).
 
 Template: `assets/UIStruct/`. Copy to UI test target.
 
-### 5. Allure Integration (Optional)
+### 6. Allure Integration (Optional)
 
 Only if project uses Allure TestOps. See [references/allure-integration.md](references/allure-integration.md).
 
