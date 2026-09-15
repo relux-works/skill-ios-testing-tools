@@ -51,6 +51,12 @@ Pick the execution platform from the target declaration before running anything.
 - Use simulator destinations only for iOS-family runs. For macOS, run on macOS directly.
 - If a reusable iOS package is consumed through an app-local graph and standalone package schemes cannot resolve local dependencies, verify it through the app workspace/test host instead of treating the standalone package build as the product build.
 
+## Native macOS without UI tests
+
+When the user excludes UI tests, honor that scope: use Swift Testing for reducers, services and integration boundaries. Do not scaffold XCUITest, require screenshot extraction from unit-only runs, or launch iOS simulators. Use `Scripts/run-macos-package-tests.sh --package <CorePackage> --output <project>/.temp/macos-tests` from this repository. It preserves logs, JUnit output and the failure exit code. Hostless Core packages keep menu-bar app lifecycle out of the tests. For launchd controllers, test with a unique temporary service and harmless process; always unload it, including after failures. Never start production CI jobs as a unit-test side effect.
+
+A native menu-bar app needs native macOS UI, not the Designed for iPad destination. Build the app with `-destination 'platform=macOS'`, inspect its signed bundle and launch the app normally for manual smoke validation. Do not mistake local service state for GitHub online/busy state. Keep app-level runtime verification separate from automated UI tests.
+
 ## Apple Silicon Mac iOS-App Runtime
 
 Use this path when the product app is an iOS app and the test environment needs a Mac-side peer or host process on Apple Silicon. This is **not** a separate macOS app target and not Catalyst. It is the existing iPhoneOS app running on the Mac as `Designed for iPad/iPhone`.
