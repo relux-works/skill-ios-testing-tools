@@ -172,7 +172,7 @@ swift run --package-path ./scripts/cleanup-allure-report cleanup-allure-report \
 
 ```bash
 allurectl upload allure-results \
-  --endpoint https://allure.example.com \
+  --endpoint https://allure.example \
   --project-id 123 \
   --token $ALLURE_TOKEN \
   --launch-name "iOS Test Run - $(date +'%Y-%m-%d %H:%M')"

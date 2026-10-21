@@ -1,0 +1,8 @@
+{
+  "schema_version": 3,
+  "capabilities": {
+    "network": [
+      "github.com"
+    ]
+  }
+}
